@@ -161,6 +161,16 @@ impl<'a> Dialog<'a> {
         Dialog { props: self.props.mount(mount), ..self }
     }
 
+    /// Shows the dialog in its own OS window opened as `spec` says (its frame, level and taskbar entry), with the layer it
+    /// has so far as the fallback where windows are unavailable. A resizable dialog's `Overlay::size` is the window's
+    /// first size and `Overlay::min_size` its least.
+    #[must_use]
+    pub fn viewport_with(self, spec: crate::runtime::windows::WindowSpec) -> Self {
+        let Mount::Layer(overlay) = self.props.mount.clone() else { return self };
+        let mount = Mount::viewport_with(overlay, spec);
+        Dialog { props: self.props.mount(mount), ..self }
+    }
+
     /// A tool window: no modal layer and no backdrop; its edits are the app's normal edits.
     #[must_use]
     pub fn modeless(self) -> Self {

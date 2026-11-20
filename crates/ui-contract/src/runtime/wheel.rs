@@ -73,6 +73,16 @@ pub(crate) fn begin(ctx: &Context) {
         .map(|at| pointer::press_winner(ctx, at, pass_pointer.press_targets).map(|(winner, _)| winner.owner));
     // A modal layer holds the wheel, except over the canvas it keeps open and inside its own family.
     let blocked = hover.is_some_and(|at| !sampler::wheel_allowed(ctx, at));
+    // The wheel over a popup, a dialog or a floating layer stays in that layer, as in Photoshop: a list scrolled to its
+    // end does not hand the rest of the gesture to the canvas or the panels behind it. Only the takers inside the
+    // topmost layer under the pointer share the wheel; none there means the layer swallows it.
+    let layer_rect = hover.and_then(|at| {
+        let layer = ctx.layer_id_at(at)?;
+        if layer.order == egui::Order::Background {
+            return None;
+        }
+        ctx.memory(|memory| memory.area_rect(layer.id))
+    });
     let wake = PerViewport::<State>::with(ctx, viewport, |state| {
         state.last = std::mem::take(&mut state.this);
         state.shares.clear();
@@ -119,8 +129,15 @@ pub(crate) fn begin(ctx: &Context) {
                     .touch_rotation(touch_rotation)
                     .at(at);
                 let focus = WheelFocus::new(focused).app_field(app_field).by_position(by_position);
+                let takers: Vec<WheelTaker<Id>> = match layer_rect {
+                    Some(rect) => {
+                        let rect = rect.expand(1.0);
+                        state.last.iter().copied().filter(|taker| rect.contains_rect(taker.rect)).collect()
+                    }
+                    None => state.last.clone(),
+                };
                 // The device's lines and pages become points of each taker: the notch is the scroll owner's to choose.
-                for (owner, mut share) in split(&state.last, at, share, focus, state.armed, &mut state.gesture, now) {
+                for (owner, mut share) in split(&takers, at, share, focus, state.armed, &mut state.gesture, now) {
                     if unit == WheelUnit::Line {
                         share.lines = share.scroll;
                     }

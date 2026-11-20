@@ -489,6 +489,12 @@ struct Session<'s, 'e> {
     state: &'s mut DialogState,
 }
 
+/// The size the dialog's window first opens at, in points.
+const DIALOG_SIZE: [f32; 2] = [960.0, 660.0];
+
+/// The least the dialog's window may be resized to, in points.
+const DIALOG_MIN: [f32; 2] = [680.0, 440.0];
+
 /// One pass: take the keys the body does not, show the dialog, close it as the user asked, report.
 fn frame(ui: &mut Ui, env: &mut Env<'_>, state: &mut DialogState) -> ShortcutsOutput {
     state.begin(env);
@@ -500,9 +506,14 @@ fn frame(ui: &mut Ui, env: &mut Env<'_>, state: &mut DialogState) -> ShortcutsOu
     let title = env.title();
     let mut open = true;
     let session = RefCell::new(Session { env, state });
+    // A window of its own with the OS's frame: its title bar moves it, its edges resize it and its own buttons close and
+    // minimize it, and it opens at a dialog's size rather than over the whole app. Where OS windows are unavailable
+    // (the web) it is a movable, resizable layer of that size.
     let shown = Dialog::new(title)
         .resizable(true)
-        .remember(SaveKey::new("craft_menu.shortcuts"))
+        .overlay(|overlay| overlay.size(egui::vec2(DIALOG_SIZE[0], DIALOG_SIZE[1])).min_size(egui::vec2(DIALOG_MIN[0], DIALOG_MIN[1])))
+        .viewport_with(craft_ui::runtime::windows::WindowSpec::dialog().chrome(craft_host::target::WindowChrome::Native))
+        .remember(SaveKey::new("craft_menu.shortcuts.window"))
         .outer_gesture(true)
         .collection_body()
         .close_on_enter(enter)

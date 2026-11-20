@@ -5,7 +5,7 @@ use std::ops::RangeInclusive;
 use craft_behavior::EditEvents;
 use craft_ui::buttons::Button;
 use craft_ui::choice::Checkbox;
-use craft_ui::contract::{Bind, EditResponse, Entry, NoValue, Outcome, Pattern, Props, SaveKey, Show as _, ShowContainer as _, clicked};
+use craft_ui::contract::{Bind, EditResponse, Entry, LabelScheme, NoValue, Outcome, Pattern, Props, SaveKey, Show as _, ShowContainer as _, clicked};
 use craft_ui::form::SliderField;
 use craft_ui::layout_components::Stack;
 use craft_ui::pickers::Select;
@@ -354,7 +354,8 @@ impl<'a> RawDevelopPanel<'a> {
         let Self { mut settings, demosaic } = self;
         let words = Env::of(ui).words::<RawDevelopWords>();
         let defaults = RawDevelopSettings::default();
-        let shown = Stack::new().show(ui, |ui, root| {
+        // The rows take the column's width with their labels at the row's start (no empty label column on the left).
+        let shown = Stack::new().fill_width().labels(LabelScheme::Inspector).show(ui, |ui, root| {
             let Some(base) = settings.reborrow().read(root).and_then(|held| held.same().cloned()) else { return Pass::default() };
             let mut rows = Rows::new(&base, &defaults);
             section(&words.section_light, "light", true).show(ui, |ui, _| {

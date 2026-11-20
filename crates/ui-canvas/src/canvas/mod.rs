@@ -733,11 +733,16 @@ impl Container for Canvas<'_> {}
 /// tool's alike. A view with no rect yet, or a canvas without a document, is left as it is.
 fn clamped(mut view: CanvasView, document: Option<Size>, navigation: &NavigationOptions) -> CanvasView {
     if let Some(document) = document
-        && !navigation.overscroll
         && view.rect.width() > 0.0
         && view.rect.height() > 0.0
     {
-        CanvasScrollbars::clamp(&mut view, DocRect::from_origin_size(Point::ZERO, document));
+        let doc = DocRect::from_origin_size(Point::ZERO, document);
+        if navigation.overscroll {
+            // Overscroll pans past the edges, but never far enough to lose the document.
+            CanvasScrollbars::limit(&mut view, doc);
+        } else {
+            CanvasScrollbars::clamp(&mut view, doc);
+        }
     }
     view
 }

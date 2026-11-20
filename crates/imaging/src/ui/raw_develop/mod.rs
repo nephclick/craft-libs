@@ -15,6 +15,7 @@
 mod commands;
 mod controls;
 mod filmstrip;
+mod looks;
 mod mixer;
 mod preview;
 mod scopes;
@@ -51,6 +52,7 @@ use craft_ui::sections::{DialogRole, FooterButton};
 use egui::{Context, Id, Ui};
 
 pub use commands::RawDevelopCommands;
+pub use looks::{RawLooks, RawPreset};
 pub use controls::{RawDevelopPanel, RawDevelopPanelOutput};
 pub use filmstrip::{RawFilmItem, RawFilmstrip};
 pub use scopes::{RawFloatingScope, RawScopeStrip, RawScopeStripOutput};
@@ -111,6 +113,8 @@ pub struct RawDevelopOpen {
     pub navigation: NavigationOptions,
     /// The user's transparency grid.
     pub checkerboard: Option<Checker>,
+    /// The presets and LUTs the app offers.
+    pub looks: RawLooks,
 }
 
 impl RawDevelopOpen {
@@ -128,7 +132,15 @@ impl RawDevelopOpen {
             current: 0,
             navigation: NavigationOptions::default(),
             checkerboard: None,
+            looks: RawLooks::default(),
         }
+    }
+
+    /// Sets the presets and LUTs the app offers.
+    #[must_use]
+    pub fn looks(mut self, looks: RawLooks) -> Self {
+        self.looks = looks;
+        self
     }
 
     /// Sets the settings Reset restores.
@@ -180,6 +192,17 @@ pub enum RawDevelopEvent {
     LoadSettings,
     /// Save Settings asks the app for a file.
     SaveSettings,
+    /// Save Preset: the app keeps `settings` as the user's preset `name` and hands back its looks (`set_looks`).
+    SavePreset {
+        /// The name the user typed.
+        name: String,
+        /// The settings to keep.
+        settings: Box<RawDevelopSettings>,
+    },
+    /// Delete of the user's preset named so.
+    DeletePreset(String),
+    /// Load LUT asks the app for a `.cube` file to add to its LUT library.
+    ImportLut,
 }
 
 /// How the workspace finished.
@@ -234,6 +257,14 @@ enum Action {
     Show(usize),
     /// An undo or redo.
     Step(Step),
+    /// A preset picked, by its index in the looks.
+    Preset(usize),
+    /// Save Preset with the name typed.
+    SavePreset(String),
+    /// Delete of a user preset.
+    DeletePreset(String),
+    /// Load LUT.
+    ImportLut,
 }
 
 /// The RAW Develop workspace, titled "RAW Develop (name)" or "RAW Develop Filter (layer)".
@@ -280,6 +311,10 @@ pub struct RawDevelopWorkspace {
     queued: Vec<RawDevelopEvent>,
     /// A finish the automation surface asked for; the next pass reports it.
     requested: Option<RawFinish>,
+    /// The presets and LUTs the app offers.
+    looks: RawLooks,
+    /// The draft of a new preset's name.
+    preset_name: String,
 }
 
 impl RawDevelopWorkspace {
@@ -315,7 +350,19 @@ impl RawDevelopWorkspace {
             last_done: None,
             queued: Vec::new(),
             requested: None,
+            looks: open.looks,
+            preset_name: String::new(),
         }
+    }
+
+    /// The presets and LUTs the workspace offers.
+    pub fn looks(&self) -> &RawLooks {
+        &self.looks
+    }
+
+    /// Replaces the presets and LUTs the workspace offers: after the app saved or deleted a preset or loaded a LUT.
+    pub fn set_looks(&mut self, looks: RawLooks) {
+        self.looks = looks;
     }
 
     /// The settings as they are now.
@@ -547,7 +594,7 @@ impl FullWindowWorkspace for RawDevelopWorkspace {
         let ws = RefCell::new(&mut *self);
 
         let shown = FullWindowDialog::new(title)
-            .own_window(WindowSpec::dialog())
+            .own_window(WindowSpec::dialog().chrome(craft_host::target::WindowChrome::Native))
             .opened(open)
             .command_scope(RawDevelopCommands::SCOPE)
             .buttons(buttons)
@@ -581,6 +628,23 @@ impl FullWindowWorkspace for RawDevelopWorkspace {
                                 .show(ui)
                         });
                         actions.borrow_mut().extend(strip.edit.events.into_iter().map(|event| Action::Edit(Box::new(event))));
+                    }
+                    let looks = looks::show(ui, &w.looks, &settings, &mut w.preset_name);
+                    {
+                        let mut queued = actions.borrow_mut();
+                        queued.extend(looks.edit.into_iter().map(|event| Action::Edit(Box::new(event))));
+                        if let Some(at) = looks.preset {
+                            queued.push(Action::Preset(at));
+                        }
+                        if let Some(name) = looks.save {
+                            queued.push(Action::SavePreset(name));
+                        }
+                        if let Some(name) = looks.delete {
+                            queued.push(Action::DeletePreset(name));
+                        }
+                        if looks.import_lut {
+                            queued.push(Action::ImportLut);
+                        }
                     }
                     let mut panel = RawDevelopPanel::new(Bind::given(settings.clone()).reset(original.clone()));
                     if let Some(demosaic) = demosaic {
@@ -791,6 +855,15 @@ impl FullWindowWorkspace for RawDevelopWorkspace {
                 Action::Edit(event) => events.push(self.take_edit(*event, alt)),
                 Action::Auto => self.run_auto(source, Arc::from(words.auto.as_str())),
                 Action::Show(index) => events.push(RawDevelopEvent::Show(index)),
+                Action::Preset(at) => {
+                    if let Some(preset) = self.looks.presets.get(at) {
+                        let next = preset.settings.clone();
+                        self.apply(next, Arc::from(words.preset_step.as_str()));
+                    }
+                }
+                Action::SavePreset(name) => events.push(RawDevelopEvent::SavePreset { name, settings: Box::new(self.settings.clone()) }),
+                Action::DeletePreset(name) => events.push(RawDevelopEvent::DeletePreset(name)),
+                Action::ImportLut => events.push(RawDevelopEvent::ImportLut),
                 Action::Step(_) => {}
             }
         }

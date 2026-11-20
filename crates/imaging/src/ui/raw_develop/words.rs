@@ -232,5 +232,27 @@ craft_ui::words! {
         lens_blur_amount: "rawDevelop.lensBlurAmount" = "Blur Amount";
         /// Bokeh boost slider.
         lens_blur_boost: "rawDevelop.lensBlurBoost" = "Bokeh Boost";
+        /// The Presets section's title.
+        section_presets: "rawDevelop.sectionPresets" = "Presets";
+        /// The history step of a picked preset.
+        preset_step: "rawDevelop.presetStep" = "Apply Preset";
+        /// The name field of a new preset.
+        preset_name: "rawDevelop.presetName" = "Preset name";
+        /// The button that saves the settings as a new preset.
+        save_preset: "rawDevelop.savePreset" = "Save Preset";
+        /// The select that deletes one of the user's presets.
+        delete_preset: "rawDevelop.deletePreset" = "Delete preset";
+        /// The note of a preset list with no presets of the user's.
+        no_user_presets: "rawDevelop.noUserPresets" = "Your saved presets appear here.";
+        /// The LUT section's title.
+        section_lut: "rawDevelop.sectionLut" = "Color LUT";
+        /// The LUT select's name.
+        lut: "rawDevelop.lut" = "LUT";
+        /// The LUT select's entry for no LUT.
+        lut_none: "rawDevelop.lutNone" = "None";
+        /// The LUT strength slider.
+        lut_amount: "rawDevelop.lutAmount" = "Amount";
+        /// The button that loads a `.cube` file into the LUT library.
+        load_lut: "rawDevelop.loadLut" = "Load LUT (.cube)…";
     }
 }

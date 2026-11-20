@@ -96,6 +96,9 @@ fn along_x(view: &CanvasView, width: f64, c: f64) -> f64 {
     if view.flip_x { width - c } else { c }
 }
 
+/// The screen points of the document that stay inside the view while overscroll lets the view pan past its edges.
+pub const OVERSCROLL_KEEP: f64 = 96.0;
+
 fn aspect(view: &CanvasView) -> f64 {
     if view.aspect.is_finite() && view.aspect > 0.0 { view.aspect } else { 1.0 }
 }
@@ -182,6 +185,41 @@ impl<'a> CanvasScrollbars<'a> {
     /// Scroll bars named `label` that edit `view`, a view over the document `document` (document units).
     pub fn new(label: impl Into<Label>, view: Bind<'a, CanvasView>, document: DocRect) -> Self {
         CanvasScrollbars { common: Common::new(), view, document, overscroll: false, vertical_only: false }.label(label)
+    }
+
+    /// Applies overscroll on to `view` over the document `doc`: the view may pan past the document's edges, but never so
+    /// far that the document leaves it. At least [`OVERSCROLL_KEEP`] screen points of the document (all of it when it
+    /// is smaller) stay inside the view on each axis, so a pan or a wheel can't lose the artwork. True when the view
+    /// moved (then repaint).
+    pub fn limit(view: &mut CanvasView, doc: DocRect) -> bool {
+        if !(doc.width() > 0.0 && doc.height() > 0.0) || !view.zoom.is_finite() || view.zoom <= 0.0 {
+            return false;
+        }
+        let size = view.rect.size();
+        if !size.is_finite() || size.x <= 0.0 || size.y <= 0.0 {
+            return false;
+        }
+        let zoom = view.zoom;
+        let (mut screen_w, mut screen_h) = (f64::from(size.x) / aspect(view), f64::from(size.y));
+        if view.rotation.abs() >= 1e-8 {
+            // A turned document's axes are not the view's: the shorter side bounds both, which keeps it on screen.
+            let shorter = screen_w.min(screen_h);
+            (screen_w, screen_h) = (shorter, shorter);
+        }
+        let axis = |center: f64, start: f64, len: f64, screen: f64| -> f64 {
+            if !center.is_finite() {
+                return start + len / 2.0;
+            }
+            let keep = OVERSCROLL_KEEP.min(len * zoom).min(screen / 2.0);
+            let reach = ((screen / 2.0) - keep).max(0.0) / zoom;
+            center.clamp(start - reach, start + len + reach)
+        };
+        let center = Point::new(axis(view.center.x, doc.x0, doc.width(), screen_w), axis(view.center.y, doc.y0, doc.height(), screen_h));
+        let changed = (center.x - view.center.x).abs() > 1e-3 || (center.y - view.center.y).abs() > 1e-3 || !view.center.x.is_finite() || !view.center.y.is_finite();
+        if changed {
+            view.center = center;
+        }
+        changed
     }
 
     /// Applies overscroll off to `view` over the document `doc`: the view can't leave the document's edges, and a

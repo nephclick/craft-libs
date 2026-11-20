@@ -96,7 +96,7 @@ pub use live_preview::{DraftScale, LivePreview, PreviewKey, PreviewLane, Preview
 pub use mask_view::{MaskViewControls, MaskViewControlsOutput, MaskViewKeys, MaskViewMode, MaskViewRecipe, MaskViewState, MaskViewWords};
 pub use raw_develop::{
     Demosaic, RawDevelopEvent, RawDevelopOpen, RawDevelopPanel, RawDevelopResult, RawDevelopSource, RawDevelopWorkspace, RawFilmItem, RawFinish,
-    RawFloatingScope, RawPreviewRequest, RawScopeStrip, RawTarget,
+    RawFloatingScope, RawLooks, RawPreset, RawPreviewRequest, RawScopeStrip, RawTarget,
 };
 pub use scopes::{
     COLORS_CHANNEL, ChannelOverlay, ClipWarning, ClippingDiagnostic, ClippingFrame, ClippingMode, ClippingOverlay, ClippingWarnings, HistogramSet,

@@ -28,6 +28,9 @@ pub enum VignetteStyle {
     HighlightPriority,
 }
 
+/// Longest LUT name, in bytes, the settings accept from commands and the control channel.
+pub const MAX_LUT_NAME: usize = 256;
+
 /// Most points a point curve accepts from commands and the control channel.
 pub const MAX_CURVE_POINTS: usize = 16;
 
@@ -201,6 +204,18 @@ pub struct RawDevelopSettings {
     /// Bokeh boost (0..=100).
     #[serde(default)]
     pub lens_blur_boost: f32,
+    // Look
+    /// The name of the colour look-up table (LUT) applied after the develop, as the app's LUT library names it; empty
+    /// for none. A name the library does not hold leaves the picture as it is.
+    #[serde(default)]
+    pub lut: String,
+    /// How strongly the LUT applies (0..=100).
+    #[serde(default = "default_lut_amount")]
+    pub lut_amount: f32,
+}
+
+fn default_lut_amount() -> f32 {
+    100.0
 }
 
 fn default_scale() -> f32 {
@@ -274,6 +289,8 @@ impl Default for RawDevelopSettings {
             offset_y: 0.0,
             lens_blur_amount: 0.0,
             lens_blur_boost: 0.0,
+            lut: String::new(),
+            lut_amount: 100.0,
         }
     }
 }
@@ -318,6 +335,17 @@ impl RawDevelopSettings {
         ] {
             validate_curve(curve).map_err(|e| format!("{name}: {e}"))?;
         }
+        self.validate_look()
+    }
+
+    /// Refuses a LUT name longer than [`MAX_LUT_NAME`] bytes and a LUT amount outside 0..=100.
+    fn validate_look(&self) -> Result<(), String> {
+        if self.lut.len() > MAX_LUT_NAME {
+            return Err(format!("lut: a LUT name is at most {MAX_LUT_NAME} bytes"));
+        }
+        if !(self.lut_amount.is_finite() && (0.0..=100.0).contains(&self.lut_amount)) {
+            return Err("lutAmount: must be in 0..=100".into());
+        }
         Ok(())
     }
 
@@ -333,6 +361,9 @@ impl RawDevelopSettings {
             if curve != kept {
                 validate_curve(curve).map_err(|e| format!("{name}: {e}"))?;
             }
+        }
+        if self.lut != stored.lut || self.lut_amount != stored.lut_amount {
+            self.validate_look()?;
         }
         Ok(())
     }
@@ -390,5 +421,6 @@ impl RawDevelopSettings {
             && self.offset_x == 0.0
             && self.offset_y == 0.0
             && self.lens_blur_amount == 0.0
+            && (self.lut.is_empty() || self.lut_amount == 0.0)
     }
 }
