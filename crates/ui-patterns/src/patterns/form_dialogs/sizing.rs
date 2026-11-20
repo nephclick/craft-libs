@@ -7,7 +7,6 @@ use crate::contract::{Bind, Entry, NoValue, Outcome, Props as _, Show as _, Show
 use crate::dialog::{DialogResult, FieldRefusal};
 use crate::display::Text;
 use crate::form::{Field, FieldGroup};
-use crate::layout_components::{Row, Stack};
 use crate::notices::{Notice, NoticeLayout};
 use crate::pickers::UnitSelect;
 use crate::runtime::env::{Env, Label, UnitKind, Units};
@@ -433,19 +432,18 @@ impl Kit {
 
     /// The width and height rows, with the chain beside them when the model draws one.
     pub(super) fn sides(&self, ui: &mut Ui, size: &mut LinkedSize) {
-        let chain = size.has_chain();
-        Row::new().show(ui, |ui, _| {
-            Stack::new().show(ui, |ui, _| {
-                self.row(ui, size, Dimension::Width);
-                self.row(ui, size, Dimension::Height);
-            });
-            if chain {
+        // Each side is a row of the form like the resolution, and the chain is a row of its own under them: a stack
+        // nested in a row beside the chain was measured before its rows and drew them squashed to a line.
+        self.row(ui, size, Dimension::Width);
+        self.row(ui, size, Dimension::Height);
+        if size.has_chain() {
+            Field::new(self.link.clone()).id_salt("link-row").show(ui, |ui, _| {
                 let toggle = link_toggle(self.link.clone(), Bind::given(size.is_linked())).enabled(size.is_resampling()).id_salt("link").show(ui);
                 if let Some(on) = toggle.value().copied() {
                     size.lock(on);
                 }
-            }
-        });
+            });
+        }
     }
 
     /// The resolution row.

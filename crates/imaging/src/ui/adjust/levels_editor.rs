@@ -431,8 +431,9 @@ impl Component for LevelsEditor<'_> {
             row: control.icon,
             bar_row: control.icon + cx.tokens.size.ramp.bar,
             fields: row,
-            field: cx.text_width(TypeRole::Body, "000") + 2.0 * control.pad_x,
-            gamma_field: cx.text_width(TypeRole::Body, "0.00") + 2.0 * control.pad_x,
+            // One character more than the value, so the caret and the field's edge never clip the last digit.
+            field: cx.text_width(TypeRole::Body, "0000") + 2.0 * control.pad_x,
+            gamma_field: cx.text_width(TypeRole::Body, "00.00") + 2.0 * control.pad_x,
             width: cx.tokens.size.plot.width,
             bar: key.channel.bar(cx),
         }
