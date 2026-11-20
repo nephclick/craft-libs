@@ -1,9 +1,9 @@
 //! The panels the strip on the window's right switches between, besides Adjust, Presets and Color LUT: Reshape
 //! (perspective, rotation and scale, with Level), Eye Fix (red and animal eyes) and Compare (before and after).
 
-use craft_behavior::EditEvents;
+use craft_behavior::{EditEvents, IconId};
 use craft_theme::TypeRole;
-use craft_ui::buttons::Button;
+use craft_ui::buttons::{Button, IconButton};
 use craft_ui::contract::{Bind, Entry, Props as _, Show as _, clicked};
 use craft_ui::display::Text;
 use craft_ui::form::SliderField;
@@ -41,15 +41,15 @@ impl RawPanel {
         }
     }
 
-    /// The glyph on the panel's button in the strip.
-    pub(super) fn glyph(self) -> &'static str {
+    /// The icon on the panel's button in the strip (from the app's icon set, so it draws in every font).
+    pub(super) fn icon(self) -> &'static str {
         match self {
-            RawPanel::Adjust => "☰",
-            RawPanel::Presets => "★",
-            RawPanel::Reshape => "⬚",
-            RawPanel::EyeFix => "◉",
-            RawPanel::Lut => "◐",
-            RawPanel::Compare => "◫",
+            RawPanel::Adjust => "adjustments",
+            RawPanel::Presets => "star",
+            RawPanel::Reshape => "crop",
+            RawPanel::EyeFix => "eye",
+            RawPanel::Lut => "palette",
+            RawPanel::Compare => "split",
         }
     }
 }
@@ -69,12 +69,15 @@ pub(super) fn strip(ui: &mut Ui, current: RawPanel) -> Option<RawPanel> {
     let mut picked = None;
     ui.vertical_centered(|ui| {
         for panel in RawPanel::ALL {
-            let text = egui::RichText::new(panel.glyph()).size(18.0);
-            let button = egui::Button::selectable(panel == current, text).min_size(egui::vec2(36.0, 36.0));
-            if ui.add(button).on_hover_text(panel.word(&words).as_str()).clicked() {
+            let button = IconButton::new(IconId::new(panel.icon()))
+                .label(panel.word(&words).clone())
+                .id_salt(panel.icon())
+                .selected(panel == current)
+                .show(ui);
+            if clicked(&button) {
                 picked = Some(panel);
             }
-            ui.add_space(2.0);
+            ui.add_space(4.0);
         }
     });
     picked
