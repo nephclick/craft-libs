@@ -212,6 +212,50 @@ pub struct RawDevelopSettings {
     /// How strongly the LUT applies (0..=100).
     #[serde(default = "default_lut_amount")]
     pub lut_amount: f32,
+    // Eye Fix
+    /// The eyes Eye Fix corrects, in picture fractions.
+    #[serde(default)]
+    pub red_eyes: Vec<EyeSpot>,
+    /// Eye Fix's pupil size (0..=100): how much of each spot's circle is corrected.
+    #[serde(default = "default_half")]
+    pub eye_pupil: f32,
+    /// Eye Fix's darken (0..=100): how dark the corrected pupil becomes.
+    #[serde(default = "default_half")]
+    pub eye_darken: f32,
+}
+
+/// Most eyes Eye Fix corrects in one picture.
+pub const MAX_EYE_SPOTS: usize = 32;
+
+/// One eye Eye Fix corrects: its centre and radius as fractions of the picture's width and height (the radius of
+/// its width), and whether it is an animal's eye (a bright reflection rather than a red one).
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EyeSpot {
+    /// Centre, 0..=1 of the width.
+    pub x: f32,
+    /// Centre, 0..=1 of the height.
+    pub y: f32,
+    /// Radius, as a fraction of the width.
+    pub radius: f32,
+    /// An animal's eye: the bright reflection is darkened, whatever its colour.
+    #[serde(default)]
+    pub pet: bool,
+}
+
+impl EyeSpot {
+    /// A spot at `x`, `y` of radius `radius` (all fractions of the picture).
+    pub fn new(x: f32, y: f32, radius: f32, pet: bool) -> Self {
+        EyeSpot { x, y, radius, pet }
+    }
+
+    fn valid(&self) -> bool {
+        [self.x, self.y].iter().all(|v| v.is_finite() && (0.0..=1.0).contains(v)) && self.radius.is_finite() && (0.0005..=0.25).contains(&self.radius)
+    }
+}
+
+fn default_half() -> f32 {
+    50.0
 }
 
 fn default_lut_amount() -> f32 {
@@ -291,6 +335,9 @@ impl Default for RawDevelopSettings {
             lens_blur_boost: 0.0,
             lut: String::new(),
             lut_amount: 100.0,
+            red_eyes: Vec::new(),
+            eye_pupil: 50.0,
+            eye_darken: 50.0,
         }
     }
 }
@@ -346,6 +393,15 @@ impl RawDevelopSettings {
         if !(self.lut_amount.is_finite() && (0.0..=100.0).contains(&self.lut_amount)) {
             return Err("lutAmount: must be in 0..=100".into());
         }
+        if self.red_eyes.len() > MAX_EYE_SPOTS {
+            return Err(format!("redEyes: at most {MAX_EYE_SPOTS} eyes"));
+        }
+        if !self.red_eyes.iter().all(EyeSpot::valid) {
+            return Err("redEyes: each eye needs x and y in 0..=1 and a radius in 0.0005..=0.25".into());
+        }
+        if ![self.eye_pupil, self.eye_darken].iter().all(|v| v.is_finite() && (0.0..=100.0).contains(v)) {
+            return Err("eyePupil and eyeDarken must be in 0..=100".into());
+        }
         Ok(())
     }
 
@@ -362,7 +418,12 @@ impl RawDevelopSettings {
                 validate_curve(curve).map_err(|e| format!("{name}: {e}"))?;
             }
         }
-        if self.lut != stored.lut || self.lut_amount != stored.lut_amount {
+        if self.lut != stored.lut
+            || self.lut_amount != stored.lut_amount
+            || self.red_eyes != stored.red_eyes
+            || self.eye_pupil != stored.eye_pupil
+            || self.eye_darken != stored.eye_darken
+        {
             self.validate_look()?;
         }
         Ok(())
@@ -422,5 +483,6 @@ impl RawDevelopSettings {
             && self.offset_y == 0.0
             && self.lens_blur_amount == 0.0
             && (self.lut.is_empty() || self.lut_amount == 0.0)
+            && self.red_eyes.is_empty()
     }
 }

@@ -16,6 +16,7 @@ mod commands;
 mod controls;
 mod filmstrip;
 mod looks;
+mod panels;
 mod mixer;
 mod preview;
 mod scopes;
@@ -60,7 +61,8 @@ pub use source::{RawDevelopSource, RawPreviewRequest};
 pub use words::RawDevelopWords;
 
 pub use crate::raw::Demosaic;
-use crate::raw::RawDevelopSettings;
+use crate::raw::{EyeSpot, MAX_EYE_SPOTS, RawDevelopSettings};
+use panels::{CompareLayout, RawPanel};
 use crate::ui::live_preview::settings_hash;
 use crate::ui::scopes::{ClippingDiagnostic, ClippingMode, ScopeCommand, ScopePanel, ScopePanelState, ScopeSettings};
 
@@ -265,6 +267,14 @@ enum Action {
     DeletePreset(String),
     /// Load LUT.
     ImportLut,
+    /// Reshape's Level.
+    Level,
+    /// Reshape's Reset.
+    ResetReshape,
+    /// Eye Fix's Clear All.
+    ClearEyes,
+    /// Eye Fix: a click on the picture, in document pixels.
+    Eye([f64; 2]),
 }
 
 /// The RAW Develop workspace, titled "RAW Develop (name)" or "RAW Develop Filter (layer)".
@@ -315,6 +325,16 @@ pub struct RawDevelopWorkspace {
     looks: RawLooks,
     /// The draft of a new preset's name.
     preset_name: String,
+    /// The Presets panel's search text.
+    preset_search: String,
+    /// The panel the side column shows.
+    panel: RawPanel,
+    /// Compare's layout.
+    compare: CompareLayout,
+    /// Eye Fix: new spots are animal eyes.
+    eye_pet: bool,
+    /// Eye Fix: a new spot's radius, in percent of the width.
+    eye_size: f32,
 }
 
 impl RawDevelopWorkspace {
@@ -352,6 +372,11 @@ impl RawDevelopWorkspace {
             requested: None,
             looks: open.looks,
             preset_name: String::new(),
+            preset_search: String::new(),
+            panel: RawPanel::default(),
+            compare: CompareLayout::default(),
+            eye_pet: false,
+            eye_size: 2.0,
         }
     }
 
@@ -606,7 +631,8 @@ impl FullWindowWorkspace for RawDevelopWorkspace {
                 let original = w.original.clone();
                 let (before, floating_now) = (w.before, w.floating);
                 let (at, has_selection) = (w.hover, source.has_selection());
-                FullWindowSide::new(words.settings.clone()).show(ui, |ui, _| {
+                let title = w.panel.word(&words).clone();
+                FullWindowSide::new(title).show(ui, |ui, _| {
                     let mut floating = floating_now;
                     if let Some(state) = w.scope.as_mut()
                         && !floating_now
@@ -629,8 +655,7 @@ impl FullWindowWorkspace for RawDevelopWorkspace {
                         });
                         actions.borrow_mut().extend(strip.edit.events.into_iter().map(|event| Action::Edit(Box::new(event))));
                     }
-                    let looks = looks::show(ui, &w.looks, &settings, &mut w.preset_name);
-                    {
+                    let push_looks = |looks: looks::LooksPass| {
                         let mut queued = actions.borrow_mut();
                         queued.extend(looks.edit.into_iter().map(|event| Action::Edit(Box::new(event))));
                         if let Some(at) = looks.preset {
@@ -645,21 +670,53 @@ impl FullWindowWorkspace for RawDevelopWorkspace {
                         if looks.import_lut {
                             queued.push(Action::ImportLut);
                         }
-                    }
-                    let mut panel = RawDevelopPanel::new(Bind::given(settings.clone()).reset(original.clone()));
-                    if let Some(demosaic) = demosaic {
-                        panel = panel.demosaic(demosaic);
-                    }
-                    let out = panel.show(ui);
-                    let mut queued = actions.borrow_mut();
-                    queued.extend(out.edit.events.into_iter().map(|event| Action::Edit(Box::new(event))));
-                    if out.auto {
-                        queued.push(Action::Auto);
-                    }
-                    if let Some(next) = out.demosaic {
-                        w.demosaic = Some(next);
+                    };
+                    match w.panel {
+                        RawPanel::Adjust => {
+                            let mut panel = RawDevelopPanel::new(Bind::given(settings.clone()).reset(original.clone()));
+                            if let Some(demosaic) = demosaic {
+                                panel = panel.demosaic(demosaic);
+                            }
+                            let out = panel.show(ui);
+                            let mut queued = actions.borrow_mut();
+                            queued.extend(out.edit.events.into_iter().map(|event| Action::Edit(Box::new(event))));
+                            if out.auto {
+                                queued.push(Action::Auto);
+                            }
+                            if let Some(next) = out.demosaic {
+                                w.demosaic = Some(next);
+                            }
+                        }
+                        RawPanel::Presets => push_looks(looks::presets_panel(ui, &w.looks, &mut w.preset_name, &mut w.preset_search)),
+                        RawPanel::Lut => push_looks(looks::lut_panel(ui, &w.looks, &settings)),
+                        RawPanel::Reshape => {
+                            let out = panels::reshape_panel(ui, &settings);
+                            let mut queued = actions.borrow_mut();
+                            queued.extend(out.edit.into_iter().map(|event| Action::Edit(Box::new(event))));
+                            if out.level {
+                                queued.push(Action::Level);
+                            }
+                            if out.reset {
+                                queued.push(Action::ResetReshape);
+                            }
+                        }
+                        RawPanel::EyeFix => {
+                            let out = panels::eye_panel(ui, &settings, &mut w.eye_pet, &mut w.eye_size);
+                            let mut queued = actions.borrow_mut();
+                            queued.extend(out.edit.into_iter().map(|event| Action::Edit(Box::new(event))));
+                            if out.clear {
+                                queued.push(Action::ClearEyes);
+                            }
+                        }
+                        RawPanel::Compare => panels::compare_panel(ui, &mut w.compare, &mut w.before),
                     }
                     w.floating = floating;
+                });
+                // The strip of panel buttons on the window's right.
+                FullWindowSide::new(words.panels.clone()).headerless().unscrolled().show(ui, |ui, _| {
+                    if let Some(panel) = panels::strip(ui, w.panel) {
+                        w.panel = panel;
+                    }
                 });
             })
             .show(ui, |ui, cx| {
@@ -731,6 +788,9 @@ impl FullWindowWorkspace for RawDevelopWorkspace {
                 let checkerboard = w.checkerboard;
                 let tool = w.tool;
                 let show_strip = w.filmstrip.len() > 1;
+                let compare = w.compare;
+                let eye_fix = w.panel == RawPanel::EyeFix;
+                let mut clicked_at: Option<[f64; 2]> = None;
                 let mut current = w.current;
                 let mut picked = None;
                 let mut hover = None;
@@ -749,7 +809,23 @@ impl FullWindowWorkspace for RawDevelopWorkspace {
                                 picked = Some(current);
                             }
                         }
+                        // Compare › Side by Side: the picture without the settings, left of the developed one, at the
+                        // same view.
+                        if compare == CompareLayout::SideBySide {
+                            Stack::new().fill().show(ui, |ui, _| {
+                                Text::new(words.before_pane.clone()).role(TypeRole::Caption).show(ui);
+                                let _ = FullWindowCanvas::new(Bind::bound(&mut view), source.before()).navigation(navigation).show(ui);
+                            });
+                        }
                         Stack::new().fill().show(ui, |ui, _| {
+                            // Compare › Stacked: the picture without the settings above the developed one.
+                            if compare == CompareLayout::Stacked {
+                                Text::new(words.before_pane.clone()).role(TypeRole::Caption).show(ui);
+                                let _ = FullWindowCanvas::new(Bind::bound(&mut view), source.before()).navigation(navigation).show(ui);
+                            }
+                            if compare != CompareLayout::Single {
+                                Text::new(words.after_pane.clone()).role(TypeRole::Caption).show(ui);
+                            }
                             let mut bar = FullWindowZoomBar::new(Bind::bound(&mut view)).progress(progress);
                             if let Some(note) = note.clone() {
                                 bar = bar.note(note);
@@ -811,12 +887,19 @@ impl FullWindowWorkspace for RawDevelopWorkspace {
                             };
                             canvas_id = Some(out.response.id);
                             hover = out.hover.map(|point| [point.x, point.y]);
+                            // Eye Fix: a click on the picture adds an eye there, or removes the one it lands on.
+                            if eye_fix && out.response.clicked() {
+                                clicked_at = hover;
+                            }
                         });
                     });
                 });
                 w.view = view;
                 w.canvas = canvas_id;
                 w.hover = hover;
+                if let Some(at) = clicked_at {
+                    actions.borrow_mut().push(Action::Eye(at));
+                }
                 w.take_sampler_events();
                 if let Some(index) = picked {
                     actions.borrow_mut().push(Action::Show(index));
@@ -864,6 +947,40 @@ impl FullWindowWorkspace for RawDevelopWorkspace {
                 Action::SavePreset(name) => events.push(RawDevelopEvent::SavePreset { name, settings: Box::new(self.settings.clone()) }),
                 Action::DeletePreset(name) => events.push(RawDevelopEvent::DeletePreset(name)),
                 Action::ImportLut => events.push(RawDevelopEvent::ImportLut),
+                Action::ResetReshape => {
+                    let next = panels::without_reshape(&self.settings);
+                    self.apply(next, Arc::from(words.reset_reshape.as_str()));
+                }
+                Action::Level => {
+                    if let Some(tilt) = self.measure_level(source) {
+                        let mut next = self.settings.clone();
+                        next.rotate = (-tilt).clamp(-45.0, 45.0);
+                        self.apply(next, Arc::from(words.level_step.as_str()));
+                    }
+                }
+                Action::ClearEyes => {
+                    let mut next = self.settings.clone();
+                    next.red_eyes.clear();
+                    self.apply(next, Arc::from(words.eye_step.as_str()));
+                }
+                Action::Eye(at) => {
+                    let (w, h) = (f64::from(self.size.width.max(1)), f64::from(self.size.height.max(1)));
+                    let (x, y) = ((at[0] / w) as f32, (at[1] / h) as f32);
+                    if (0.0..=1.0).contains(&x) && (0.0..=1.0).contains(&y) {
+                        let mut next = self.settings.clone();
+                        let aspect = (h / w) as f32;
+                        // A click inside a spot removes it; elsewhere it adds one, up to the most a picture takes.
+                        let hit = next.red_eyes.iter().position(|e| ((e.x - x).powi(2) + ((e.y - y) * aspect).powi(2)).sqrt() <= e.radius);
+                        match hit {
+                            Some(i) => {
+                                next.red_eyes.remove(i);
+                            }
+                            None if next.red_eyes.len() < MAX_EYE_SPOTS => next.red_eyes.push(EyeSpot::new(x, y, self.eye_size / 100.0, self.eye_pet)),
+                            None => {}
+                        }
+                        self.apply(next, Arc::from(words.eye_step.as_str()));
+                    }
+                }
                 Action::Step(_) => {}
             }
         }
@@ -980,6 +1097,22 @@ impl FullWindowWorkspace for RawDevelopWorkspace {
 }
 
 impl RawDevelopWorkspace {
+    /// Reshape's Level: the tilt of the picture as opened, read from the source at about 512 pixels.
+    fn measure_level(&self, source: &dyn RawDevelopSource) -> Option<f32> {
+        let raster = source.before();
+        let size = raster.size();
+        let side = size.width.max(size.height).max(1);
+        let factor = (side / 512).max(1);
+        let (w, h) = (size.width.div_ceil(factor) as usize, size.height.div_ceil(factor) as usize);
+        if w < 8 || h < 8 {
+            return None;
+        }
+        let mut image = egui::ColorImage::filled([w, h], egui::Color32::TRANSPARENT);
+        let region = PixelRect::new(0, 0, i32::try_from(size.width).ok()?, i32::try_from(size.height).ok()?);
+        raster.read(region, factor, &mut image);
+        panels::measure_tilt(&image)
+    }
+
     /// The label of the default footer button: OK for a filter, Open for raws being opened.
     fn target_label(&self, words: &RawDevelopWords, common: &CommonWords) -> Label {
         match self.target {

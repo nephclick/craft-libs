@@ -254,5 +254,63 @@ craft_ui::words! {
         lut_amount: "rawDevelop.lutAmount" = "Amount";
         /// The button that loads a `.cube` file into the LUT library.
         load_lut: "rawDevelop.loadLut" = "Load LUT (.cube)…";
+        /// The accessible name of the strip of panel buttons on the window's right.
+        panels: "rawDevelop.panels" = "Panels";
+        /// The Adjust panel: every develop slider.
+        panel_adjust: "rawDevelop.panelAdjust" = "Adjust";
+        /// The Presets panel: the list of presets.
+        panel_presets: "rawDevelop.panelPresets" = "Presets";
+        /// The Reshape panel: perspective, rotation and scale.
+        panel_reshape: "rawDevelop.panelReshape" = "Reshape";
+        /// The Eye Fix panel: red and animal eye correction.
+        panel_eye_fix: "rawDevelop.panelEyeFix" = "Eye Fix";
+        /// The Color LUT panel.
+        panel_lut: "rawDevelop.panelLut" = "Color LUT";
+        /// The Compare panel: before and after.
+        panel_compare: "rawDevelop.panelCompare" = "Compare";
+        /// The Presets panel's search field.
+        search_presets: "rawDevelop.searchPresets" = "Search presets";
+        /// The Presets panel's group of the app's presets.
+        builtin_presets: "rawDevelop.builtinPresets" = "Built-in";
+        /// The Presets panel's group of the user's presets.
+        user_presets: "rawDevelop.userPresets" = "Yours";
+        /// Reshape's automatic straightening button.
+        level: "rawDevelop.level" = "Level";
+        /// The history step of Level.
+        level_step: "rawDevelop.levelStep" = "Level";
+        /// Reshape's reset button.
+        reset_reshape: "rawDevelop.resetReshape" = "Reset Reshape";
+        /// Eye Fix's how-to.
+        eye_fix_hint: "rawDevelop.eyeFixHint" = "Click the centre of each eye in the picture.";
+        /// Eye Fix's kind of eye.
+        eye_kind: "rawDevelop.eyeKind" = "Eye type";
+        /// A person's red eye.
+        eye_red: "rawDevelop.eyeRed" = "Red eye";
+        /// An animal's glowing eye.
+        eye_pet: "rawDevelop.eyePet" = "Pet eye";
+        /// Eye Fix's size of a new spot.
+        eye_size: "rawDevelop.eyeSize" = "Spot size";
+        /// Eye Fix's pupil slider.
+        eye_pupil: "rawDevelop.eyePupil" = "Pupil Size";
+        /// Eye Fix's darken slider.
+        eye_darken: "rawDevelop.eyeDarken" = "Darken";
+        /// Eye Fix's count; `{n}` the number of eyes.
+        eye_count: template "rawDevelop.eyeCount" = "{n} eyes corrected";
+        /// Eye Fix's button that removes every spot.
+        eye_clear: "rawDevelop.eyeClear" = "Clear All";
+        /// The history step of an eye added or removed.
+        eye_step: "rawDevelop.eyeStep" = "Eye Fix";
+        /// Compare's layout: one view.
+        compare_single: "rawDevelop.compareSingle" = "Single";
+        /// Compare's layout: before and after side by side.
+        compare_side: "rawDevelop.compareSide" = "Side by Side";
+        /// Compare's layout: before above after.
+        compare_stacked: "rawDevelop.compareStacked" = "Stacked";
+        /// Compare's how-to.
+        compare_hint: "rawDevelop.compareHint" = "Hold Y, or pick Before, to see the picture without the settings in Single.";
+        /// The label over the before pane.
+        before_pane: "rawDevelop.beforePane" = "Before";
+        /// The label over the after pane.
+        after_pane: "rawDevelop.afterPane" = "After";
     }
 }

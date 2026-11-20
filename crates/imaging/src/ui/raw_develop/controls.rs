@@ -49,13 +49,13 @@ impl Outcome for RawDevelopPanelOutput {
 pub(super) struct Slider {
     /// The settings field's name, the key of a tone zone.
     pub(super) key: &'static str,
-    word: fn(&RawDevelopWords) -> &Label,
+    pub(super) word: fn(&RawDevelopWords) -> &Label,
     pub(super) get: fn(&RawDevelopSettings) -> f32,
     pub(super) set: fn(&mut RawDevelopSettings, f32),
     pub(super) min: f64,
     pub(super) max: f64,
     pub(super) step: f64,
-    stops: Option<fn() -> Vec<DataColor>>,
+    pub(super) stops: Option<fn() -> Vec<DataColor>>,
 }
 
 /// A slider row over the settings field `$field`; its label is the word of the same name, or `$word` when given
@@ -145,7 +145,7 @@ const OPTICS: &[Slider] = &[
     slider!(defringe_green, 0.0, 20.0),
 ];
 
-const GEOMETRY: &[Slider] = &[
+pub(super) const GEOMETRY: &[Slider] = &[
     slider!(distortion, -100.0, 100.0),
     slider!(vertical, -100.0, 100.0),
     slider!(horizontal, -100.0, 100.0),
@@ -396,9 +396,7 @@ impl<'a> RawDevelopPanel<'a> {
                 rows.pass.edit.extend(lift(shown.events, rows.base, &|settings, v| settings.remove_ca = v));
                 rows.table(ui, &words, OPTICS);
             });
-            section(&words.section_geometry, "geometry", false).show(ui, |ui, _| {
-                rows.table(ui, &words, GEOMETRY);
-            });
+            // Geometry has its own panel (Reshape).
             section(&words.section_lens_blur, "lens_blur", false).show(ui, |ui, _| {
                 rows.table(ui, &words, LENS_BLUR);
             });
