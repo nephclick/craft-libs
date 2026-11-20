@@ -200,5 +200,37 @@ craft_ui::words! {
         primary_green: "rawDevelop.primaryGreen" = "Green";
         /// The blue primary.
         primary_blue: "rawDevelop.primaryBlue" = "Blue";
+        /// The Optics section's title.
+        section_optics: "rawDevelop.sectionOptics" = "Optics";
+        /// The Geometry section's title.
+        section_geometry: "rawDevelop.sectionGeometry" = "Geometry";
+        /// The Lens Blur section's title.
+        section_lens_blur: "rawDevelop.sectionLensBlur" = "Lens Blur";
+        /// Remove Chromatic Aberration.
+        remove_ca: "rawDevelop.removeCa" = "Remove Chromatic Aberration";
+        /// Defringe purple slider.
+        defringe_purple: "rawDevelop.defringePurple" = "Defringe Purple";
+        /// Defringe green slider.
+        defringe_green: "rawDevelop.defringeGreen" = "Defringe Green";
+        /// Distortion slider.
+        distortion: "rawDevelop.distortion" = "Distortion";
+        /// Vertical perspective slider.
+        vertical: "rawDevelop.vertical" = "Vertical";
+        /// Horizontal perspective slider.
+        horizontal: "rawDevelop.horizontal" = "Horizontal";
+        /// Rotate slider.
+        rotate: "rawDevelop.rotate" = "Rotate";
+        /// Scale slider.
+        scale: "rawDevelop.scale" = "Scale";
+        /// Aspect slider.
+        aspect: "rawDevelop.aspect" = "Aspect";
+        /// Offset X slider.
+        offset_x: "rawDevelop.offsetX" = "Offset X";
+        /// Offset Y slider.
+        offset_y: "rawDevelop.offsetY" = "Offset Y";
+        /// Lens blur amount slider.
+        lens_blur_amount: "rawDevelop.lensBlurAmount" = "Blur Amount";
+        /// Bokeh boost slider.
+        lens_blur_boost: "rawDevelop.lensBlurBoost" = "Bokeh Boost";
     }
 }

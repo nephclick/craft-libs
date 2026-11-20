@@ -159,6 +159,52 @@ pub struct RawDevelopSettings {
     pub calibration_hue: [f32; 3],
     /// Red, Green and Blue Primary › Saturation: −100 (grey) … 100 (purer).
     pub calibration_sat: [f32; 3],
+    // Optics (from Nephclick PicShot)
+    /// Remove chromatic aberration.
+    #[serde(default)]
+    pub remove_ca: bool,
+    /// Defringe purple amount (0..=20).
+    #[serde(default)]
+    pub defringe_purple: f32,
+    /// Defringe green amount (0..=20).
+    #[serde(default)]
+    pub defringe_green: f32,
+    // Geometry (from Nephclick PicShot)
+    /// Distortion (-100..=100).
+    #[serde(default)]
+    pub distortion: f32,
+    /// Vertical perspective (-100..=100).
+    #[serde(default)]
+    pub vertical: f32,
+    /// Horizontal perspective (-100..=100).
+    #[serde(default)]
+    pub horizontal: f32,
+    /// Rotate (-45..=45).
+    #[serde(default)]
+    pub rotate: f32,
+    /// Scale (50..=150, default 100).
+    #[serde(default = "default_scale")]
+    pub scale: f32,
+    /// Aspect ratio (-100..=100).
+    #[serde(default)]
+    pub aspect: f32,
+    /// Offset X (-100..=100).
+    #[serde(default)]
+    pub offset_x: f32,
+    /// Offset Y (-100..=100).
+    #[serde(default)]
+    pub offset_y: f32,
+    // Lens Blur (from Nephclick PicShot)
+    /// Lens blur amount (0..=100).
+    #[serde(default)]
+    pub lens_blur_amount: f32,
+    /// Bokeh boost (0..=100).
+    #[serde(default)]
+    pub lens_blur_boost: f32,
+}
+
+fn default_scale() -> f32 {
+    100.0
 }
 
 impl Default for RawDevelopSettings {
@@ -215,6 +261,19 @@ impl Default for RawDevelopSettings {
             shadow_tint: 0.0,
             calibration_hue: [0.0; 3],
             calibration_sat: [0.0; 3],
+            remove_ca: false,
+            defringe_purple: 0.0,
+            defringe_green: 0.0,
+            distortion: 0.0,
+            vertical: 0.0,
+            horizontal: 0.0,
+            rotate: 0.0,
+            scale: 100.0,
+            aspect: 0.0,
+            offset_x: 0.0,
+            offset_y: 0.0,
+            lens_blur_amount: 0.0,
+            lens_blur_boost: 0.0,
         }
     }
 }
@@ -319,5 +378,17 @@ impl RawDevelopSettings {
             && self.noise_color == 0.0
             && self.grain_amount == 0.0
             && self.vignette_amount == 0.0
+            && !self.remove_ca
+            && self.defringe_purple == 0.0
+            && self.defringe_green == 0.0
+            && self.distortion == 0.0
+            && self.vertical == 0.0
+            && self.horizontal == 0.0
+            && self.rotate == 0.0
+            && (self.scale == 100.0 || self.scale == 0.0)
+            && self.aspect == 0.0
+            && self.offset_x == 0.0
+            && self.offset_y == 0.0
+            && self.lens_blur_amount == 0.0
     }
 }

@@ -173,7 +173,7 @@ impl<'a> LevelsPanel<'a> {
         let entries: Vec<Entry<usize>> = channels.as_slice().iter().enumerate().map(|(at, channel)| Entry::new(at, channel.label(&words))).collect();
         let (mut edit, mut picker, mut clipping) = (EditEvents::new(), None, None);
         let mut shown = 0;
-        let stack = Stack::new().label(label).enabled(enabled);
+        let stack = Stack::new().label(label).enabled(enabled).fill_width();
         // Alt+2…Alt+6 pick the Channel select's entry in a dialog; Properties has no such keys.
         let stack = if context.is_dialog() { stack.command_scope(ToneChannelCommands::SCOPE) } else { stack };
         let group = stack.show(ui, |ui, cx| {
@@ -213,7 +213,7 @@ impl<'a> LevelsPanel<'a> {
 
             let mut picked = channel;
             let mut auto = false;
-            Row::new().show(ui, |ui, _| {
+            Row::new().fill_width().show(ui, |ui, _| {
                 // No channels (an action whose target is unresolved): no Channel select.
                 if !entries.is_empty() {
                     Text::new(words.channel.clone()).shade(Shade::Muted).role(TypeRole::Label).show(ui);
@@ -225,7 +225,7 @@ impl<'a> LevelsPanel<'a> {
                 auto = clicked(&Button::new(words.auto.clone()).enabled(counts.is_some()).show(ui));
             });
 
-            let mut editor = LevelsEditor::new(name, Bind::given(value)).channel(color).stale(stale);
+            let mut editor = LevelsEditor::new(name, Bind::given(value)).channel(color).stale(stale).sizing(Sizing::FillWidth);
             if let Some(data) = &data {
                 editor = editor.histogram(data);
             }

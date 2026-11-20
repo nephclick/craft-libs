@@ -4,6 +4,7 @@ use std::ops::RangeInclusive;
 
 use craft_behavior::EditEvents;
 use craft_ui::buttons::Button;
+use craft_ui::choice::Checkbox;
 use craft_ui::contract::{Bind, EditResponse, Entry, NoValue, Outcome, Pattern, Props, SaveKey, Show as _, ShowContainer as _, clicked};
 use craft_ui::form::SliderField;
 use craft_ui::layout_components::Stack;
@@ -139,8 +140,31 @@ pub(super) const GRADING_TAIL: &[Slider] = &[slider!(grade_blending: blending, 0
 /// The Calibration section's first row.
 const CALIBRATION: &[Slider] = &[slider!(shadow_tint, -100.0, 100.0)];
 
+const OPTICS: &[Slider] = &[
+    slider!(defringe_purple, 0.0, 20.0),
+    slider!(defringe_green, 0.0, 20.0),
+];
+
+const GEOMETRY: &[Slider] = &[
+    slider!(distortion, -100.0, 100.0),
+    slider!(vertical, -100.0, 100.0),
+    slider!(horizontal, -100.0, 100.0),
+    slider!(rotate, -45.0, 45.0, 0.5),
+    slider!(scale, 50.0, 150.0, 1.0),
+    slider!(aspect, -100.0, 100.0),
+    slider!(offset_x, -100.0, 100.0),
+    slider!(offset_y, -100.0, 100.0),
+];
+
+const LENS_BLUR: &[Slider] = &[
+    slider!(lens_blur_amount, 0.0, 100.0),
+    slider!(lens_blur_boost, 0.0, 100.0),
+];
+
 /// Every table of plain rows.
-const TABLES: [&[Slider]; 9] = [LIGHT, COLOR, EFFECTS, VIGNETTE, GRAIN, CURVE_REGIONS, DETAIL, GRADING_TAIL, CALIBRATION];
+const TABLES: [&[Slider]; 12] = [
+    LIGHT, COLOR, EFFECTS, VIGNETTE, GRAIN, CURVE_REGIONS, DETAIL, GRADING_TAIL, CALIBRATION, OPTICS, GEOMETRY, LENS_BLUR,
+];
 
 /// The label word of the one row that edits the settings field `field` (its serde name, as the automation surface
 /// writes it); `None` for a field no one row edits.
@@ -363,6 +387,19 @@ impl<'a> RawDevelopPanel<'a> {
             });
             section(&words.section_calibration, "calibration", false).show(ui, |ui, _| {
                 rows.calibration(ui, &words);
+            });
+            section(&words.section_optics, "optics", false).show(ui, |ui, _| {
+                let ca = rows.base.remove_ca;
+                let default_ca = rows.defaults.remove_ca;
+                let shown = Checkbox::new(Bind::given(ca).reset(default_ca)).label(words.remove_ca.clone()).show(ui);
+                rows.pass.edit.extend(lift(shown.events, rows.base, &|settings, v| settings.remove_ca = v));
+                rows.table(ui, &words, OPTICS);
+            });
+            section(&words.section_geometry, "geometry", false).show(ui, |ui, _| {
+                rows.table(ui, &words, GEOMETRY);
+            });
+            section(&words.section_lens_blur, "lens_blur", false).show(ui, |ui, _| {
+                rows.table(ui, &words, LENS_BLUR);
             });
             for event in &rows.pass.edit {
                 settings.reborrow().write(root, event);

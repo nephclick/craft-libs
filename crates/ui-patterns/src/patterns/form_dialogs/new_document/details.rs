@@ -7,7 +7,7 @@ use super::presets::{
 use super::{NewDocumentWords, Read, Session, background_rgb, depth_label, mode_label};
 use crate::buttons::{Button, IconButton};
 use crate::choice::{Checkbox, Segmented, Swatch};
-use crate::contract::{Bind, Entry, Props as _, Show as _, ShowContainer as _, Validity, clicked};
+use crate::contract::{Bind, Entry, Props as _, Show as _, ShowContainer as _, Sizing, Validity, clicked};
 use crate::display::{Shade, Text};
 use crate::form::{Field, FieldGroup};
 use crate::layout_components::Row;
@@ -123,8 +123,8 @@ pub(super) fn show(ui: &mut Ui, session: &mut Session, values: &mut DocumentOpti
     Text::new(words.preset_details.clone()).role(TypeRole::Label).shade(Shade::Muted).show(ui);
     FieldGroup::new(words.preset_details.clone()).show(ui, |ui, _| {
         Field::new(words.name.clone()).id_salt("name").show(ui, |ui, _| {
-            Row::new().show(ui, |ui, _| {
-                let shown = TextField::new(words.name.clone(), Bind::given(values.name.clone())).limit(MAX_NAME).select_on_focus().show(ui);
+            Row::new().sizing(Sizing::FillWidth).show(ui, |ui, _| {
+                let shown = TextField::new(words.name.clone(), Bind::given(values.name.clone())).limit(MAX_NAME).select_on_focus().sizing(Sizing::FillWidth).show(ui);
                 if let Some(name) = shown.value().cloned() {
                     values.name = name;
                 }
@@ -153,6 +153,7 @@ pub(super) fn show(ui: &mut Ui, session: &mut Session, values: &mut DocumentOpti
                 let shown = UnitSelect::new(side.name(words).clone(), Bind::given(Some(value)), Bind::given(session.size.unit()), &size_units)
                     .range(range)
                     .unit_label(side.unit_name(words).clone())
+                    .sizing(Sizing::FillWidth)
                     .show(ui);
                 apply_number(session, &shown.edit.events, |size, value| match side {
                     Side::Width => size.set_width(value),
@@ -194,6 +195,7 @@ pub(super) fn show(ui: &mut Ui, session: &mut Session, values: &mut DocumentOpti
             )
             .range(session.size.resolution_range())
             .unit_label(words.resolution_unit.clone())
+            .sizing(Sizing::FillWidth)
             .show(ui);
             apply_number(session, &shown.edit.events, LinkedSize::set_resolution);
             if let Some(kind) = shown.unit.value().copied() {
@@ -203,7 +205,7 @@ pub(super) fn show(ui: &mut Ui, session: &mut Session, values: &mut DocumentOpti
         values.take_linked(&session.size);
 
         Field::new(words.color_mode.clone()).id_salt("mode").show(ui, |ui, _| {
-            let shown = Select::new(words.color_mode.clone(), Bind::given(values.color_mode), &modes).show(ui);
+            let shown = Select::new(words.color_mode.clone(), Bind::given(values.color_mode), &modes).sizing(Sizing::FillWidth).show(ui);
             if let Some(mode) = shown.value().cloned() {
                 values.color_mode = mode;
                 // A profile of the old mode's colour space does not suit the new one.
@@ -211,14 +213,14 @@ pub(super) fn show(ui: &mut Ui, session: &mut Session, values: &mut DocumentOpti
             }
         });
         Field::new(words.depth.clone()).id_salt("depth").show(ui, |ui, _| {
-            let shown = Select::new(words.depth.clone(), Bind::given(values.depth), &depths).show(ui);
+            let shown = Select::new(words.depth.clone(), Bind::given(values.depth), &depths).sizing(Sizing::FillWidth).show(ui);
             if let Some(depth) = shown.value().cloned() {
                 values.depth = depth;
             }
         });
         Field::new(words.profile.clone()).id_salt("profile").show(ui, |ui, _| {
             let current = values.profile.clone().filter(|profile| others.contains(&profile));
-            let shown = Select::new(words.profile.clone(), Bind::given(current), &profiles).show(ui);
+            let shown = Select::new(words.profile.clone(), Bind::given(current), &profiles).sizing(Sizing::FillWidth).show(ui);
             if let Some(profile) = shown.value().cloned() {
                 values.profile = profile;
             }
@@ -226,16 +228,16 @@ pub(super) fn show(ui: &mut Ui, session: &mut Session, values: &mut DocumentOpti
         Field::new(words.pixel_aspect.clone()).id_salt("pixel-aspect").show(ui, |ui, _| {
             let listed = pixel_aspects.iter().any(|entry| entry.value() == Some(&values.pixel_aspect));
             let current = if listed { values.pixel_aspect.clone() } else { SQUARE_PIXELS.to_owned() };
-            let shown = Select::new(words.pixel_aspect.clone(), Bind::given(current), &pixel_aspects).show(ui);
+            let shown = Select::new(words.pixel_aspect.clone(), Bind::given(current), &pixel_aspects).sizing(Sizing::FillWidth).show(ui);
             if let Some(id) = shown.value().cloned() {
                 values.pixel_aspect = id;
             }
         });
 
         Field::new(words.background.clone()).id_salt("background").show(ui, |ui, _| {
-            Row::new().show(ui, |ui, _| {
+            Row::new().sizing(Sizing::FillWidth).show(ui, |ui, _| {
                 let kind = BackgroundKind::of(values.background);
-                let shown = Select::new(words.background.clone(), Bind::given(kind), &backgrounds).show(ui);
+                let shown = Select::new(words.background.clone(), Bind::given(kind), &backgrounds).sizing(Sizing::FillWidth).show(ui);
                 match shown.value().cloned() {
                     Some(BackgroundKind::White) => values.background = BackgroundContents::White,
                     Some(BackgroundKind::Black) => values.background = BackgroundContents::Black,
