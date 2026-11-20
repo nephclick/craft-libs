@@ -6,7 +6,7 @@
 
 use crate::primitives::pointer_art::{self as pointers, Art};
 
-use crate::primitives::{Draw, DrawEnv, Mirror, PaintRecord, PaintShape, RuleKind, Span, SvgIcon, TextRun, outline};
+use crate::primitives::{Draw, DrawEnv, IconSet, Mirror, PaintRecord, PaintShape, RuleKind, Span, SvgIcon, TextRun, outline};
 use crate::runtime::drag::{self, DragPreview, DropMark};
 use crate::runtime::egui::areas;
 use crate::runtime::env::{Env, EnvView, Label};
@@ -150,8 +150,9 @@ fn pointer_art(env: &Env, cursor: &craft_behavior::PaintedCursor, closed: bool, 
         PaintedCursor::Zoom { out, .. } => pointers::zoom(&pen, *out),
         PaintedCursor::Tool { icon, hotspot, badge, .. } => {
             let side = env.tokens.size.icon.md;
+            let hotspot = drawn_tip(env.tokens.icons(), icon.name()).unwrap_or(*hotspot);
             let icon = SvgIcon::of(&env.tokens, env.direction, side, icon, Mirror::Auto);
-            pointers::tool(&pen, icon, *hotspot, *badge, side);
+            pointers::tool(&pen, icon, hotspot, *badge, side);
         }
         PaintedCursor::Badged { badge, .. } => pointers::badge_beside(&pen, *badge),
         PaintedCursor::Turn { toward, .. } => pointers::turn(&pen, *toward),
@@ -263,5 +264,33 @@ fn paint_mark(painter: &egui::Painter, tokens: &UiTokens, mark: DropMark) {
     }
     for &segment in &segments {
         painter.rect_filled(band(segment, width / 2.0), CornerRadius::ZERO, look.color);
+    }
+}
+
+/// The tip of a pen icon as `set` draws it, in the icon's 24-unit box: a tool's cursor puts its hotspot there, so the
+/// point a press acts on is the nib the user aims with. The sets draw the nib in different corners (Lucide's points up
+/// left, Phosphor's and Carbon's down left), so one hotspot the tool names can't fit them all. The pen-family icons only
+/// the base set has draw the nib up left whatever the set. `None` for any other icon: the tool's own hotspot stands.
+fn drawn_tip(set: IconSet, name: &str) -> Option<Vec2> {
+    match (name, set) {
+        ("pen_tool", IconSet::Lucide) => Some(vec2(1.6, 1.6)),
+        ("pen_tool", IconSet::Phosphor) => Some(vec2(2.3, 21.7)),
+        ("pen_tool", IconSet::Carbon) => Some(vec2(1.7, 22.1)),
+        ("pen_curvature" | "pen_freeform" | "pen_add_anchor" | "pen_delete_anchor", _) => Some(vec2(2.8, 5.0)),
+        _ => None,
+    }
+}
+
+#[cfg(test)]
+mod drawn_tip_tests {
+    use super::*;
+
+    #[test]
+    fn the_pen_tip_follows_the_nib_each_set_draws() {
+        let lucide = drawn_tip(IconSet::Lucide, "pen_tool").unwrap();
+        assert!(lucide.y < 4.0, "Lucide's nib points up: {lucide:?}");
+        let phosphor = drawn_tip(IconSet::Phosphor, "pen_tool").unwrap();
+        assert!(phosphor.y > 20.0, "Phosphor's nib points down: {phosphor:?}");
+        assert_eq!(drawn_tip(IconSet::Lucide, "brush"), None, "other icons keep the tool's hotspot");
     }
 }

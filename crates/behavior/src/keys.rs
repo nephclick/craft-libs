@@ -268,7 +268,9 @@ pub fn intent(os: Os, key: Key, mods: Mods, role: KeyRole) -> Option<Intent> {
         Key::Menu if plain && !mac => return Some(Intent::ContextMenu),
         Key::F10 if only(Mods::SHIFT) => return Some(Intent::ContextMenu),
         Key::F2 if plain && role.rename => return Some(Intent::Rename),
-        Key::Enter if only(Mods::CMD) => return Some(Intent::SubmitForce),
+        // A document canvas reads no forced submit: Cmd+Enter there is the app's (Photoshop's Make Selection from Path
+        // while drawing with the Pen), so it stays a shortcut candidate instead of being taken by the focused canvas.
+        Key::Enter if only(Mods::CMD) && !role.document => return Some(Intent::SubmitForce),
         Key::Down if only(Mods::ALT) => return Some(Intent::Open),
         Key::Up if only(Mods::ALT) => return Some(Intent::Close),
         Key::PageUp if !mac && !role.document && only(Mods::CMD) => return Some(Intent::switch_page(false)),
