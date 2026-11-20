@@ -81,7 +81,9 @@ pub(crate) fn begin(ctx: &Context) {
         if layer.order == egui::Order::Background {
             return None;
         }
-        ctx.memory(|memory| memory.area_rect(layer.id))
+        // A modal dialog's layer answers for the whole window; over the canvas it keeps open the pointer is outside
+        // its rect, and the wheel goes to the canvas as before.
+        ctx.memory(|memory| memory.area_rect(layer.id)).filter(|rect| rect.contains(at))
     });
     let wake = PerViewport::<State>::with(ctx, viewport, |state| {
         state.last = std::mem::take(&mut state.this);
