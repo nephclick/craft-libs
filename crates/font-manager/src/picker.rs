@@ -36,6 +36,7 @@ craft_ui::words! {
         search: "fontPicker.search" = "Search fonts";
         recent: "fontPicker.recent" = "Recent";
         favorites: "fontPicker.favorites" = "Show favorite fonts";
+        recent_filter: "fontPicker.recentFilter" = "Show recently used fonts";
         similar: "fontPicker.similar" = "Show similar fonts";
         variable: "fontPicker.variable" = "Show variable fonts";
         classes: "fontPicker.classes" = "Filter by class";
@@ -163,6 +164,9 @@ pub struct FontFilters {
     pub class: Option<FontClass>,
     /// Only starred families.
     pub favorites: bool,
+    /// Only the most recently used families, most recent first (the Recent category). With no recents yet the
+    /// filter shows every family.
+    pub recent: bool,
     /// Only variable fonts.
     pub variable: bool,
     /// Families like the current one, most alike first ([`SIMILAR_COUNT`] of them).
@@ -172,7 +176,7 @@ pub struct FontFilters {
 impl FontFilters {
     /// Whether any filter narrows the list (Clear All is enabled).
     pub fn any(&self) -> bool {
-        self.class.is_some() || self.favorites || self.variable || self.similar
+        self.class.is_some() || self.favorites || self.recent || self.variable || self.similar
     }
 
     /// Clear All: every filter off.

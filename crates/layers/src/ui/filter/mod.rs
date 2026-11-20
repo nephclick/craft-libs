@@ -30,8 +30,10 @@ use super::tree::{LayerInfo, LayerKind, LayerPart, LayerTree};
 #[serde(rename_all = "camelCase")]
 #[non_exhaustive]
 pub enum FilterBy {
-    /// Layer kinds, toggled with five buttons.
+    /// One search field over each layer's name, kind (text, shape, image…) and label colour.
     #[default]
+    Search,
+    /// Layer kinds, toggled with five buttons.
     Kind,
     /// Part of the layer name, typed in a search field.
     Name,
@@ -53,7 +55,8 @@ pub enum FilterBy {
 
 impl FilterBy {
     /// Every type, in the type select's order.
-    pub const ALL: [FilterBy; 9] = [
+    pub const ALL: [FilterBy; 10] = [
+        FilterBy::Search,
         FilterBy::Kind,
         FilterBy::Name,
         FilterBy::Effect,
@@ -363,7 +366,7 @@ impl Default for LayerFilter {
     /// Kind, no kinds toggled, no name, mode `"normal"`: shows every layer.
     fn default() -> Self {
         Self {
-            by: FilterBy::Kind,
+            by: FilterBy::Search,
             kinds: Vec::new(),
             name: String::new(),
             effect: EffectKind::default(),
@@ -384,7 +387,7 @@ impl LayerFilter {
         // pc: crates/ui-egui/src/panels/layer_filter_ui.rs `Filter::active`.
         match self.by {
             FilterBy::Kind => !self.kinds.is_empty(),
-            FilterBy::Name => !self.name.trim().is_empty(),
+            FilterBy::Search | FilterBy::Name => !self.name.trim().is_empty(),
             FilterBy::SmartObject => !self.smart.is_empty(),
             FilterBy::Effect | FilterBy::Mode | FilterBy::Attribute | FilterBy::Color | FilterBy::Artboard | FilterBy::Group => true,
         }
@@ -412,6 +415,7 @@ impl LayerFilter {
         }
         match self.by {
             FilterBy::Kind => info.kind.filter_kind().is_some_and(|kind| self.kinds.contains(&kind)),
+            FilterBy::Search => search_matches(info, &self.name),
             FilterBy::Name => info.name.to_lowercase().contains(&self.name.trim().to_lowercase()),
             FilterBy::Effect => info.effect_kinds.contains(&self.effect),
             FilterBy::Mode => info.blend_key == self.mode,
@@ -543,6 +547,10 @@ craft_ui::words! {
         search: "layerFilterBar.search" = "Search";
         /// The name field's name.
         search_layers: "layerFilterBar.searchLayers" = "Search layers";
+        /// The Search type's entry.
+        search_all: "layerFilterBar.searchAll" = "Search";
+        /// The Search field's hint.
+        search_everything: "layerFilterBar.searchEverything" = "Name, type or color";
         /// The effect select's name.
         filter_effect: "layerFilterBar.filterEffect" = "Filter effect";
         /// The effect select's entries.
@@ -702,9 +710,9 @@ impl<'a> LayerFilterBar<'a> {
                     ];
                     toggles(ui, &kinds, FilterKind::name, &mut next.kinds);
                 }
-                FilterBy::Name => {
-                    let mut field =
-                        TextField::search(words.search_layers.clone(), Bind::given(current.name.clone())).placeholder(words.search.clone());
+                FilterBy::Search | FilterBy::Name => {
+                    let hint = if shown == FilterBy::Search { &words.search_everything } else { &words.search };
+                    let mut field = TextField::search(words.search_layers.clone(), Bind::given(current.name.clone())).placeholder(hint.clone());
                     if focus_name || select_name {
                         field = field.select_on_focus();
                     }
@@ -771,8 +779,37 @@ impl<'a> LayerFilterBar<'a> {
     }
 }
 
+/// Whether a layer matches the Search type's text: part of its name, the start of a word for its kind (text, type,
+/// shape, image, pixel, adjustment, fill, smart, group…) or of its label colour's name. Ignores case and the spaces
+/// around the text.
+pub fn search_matches(info: &LayerInfo, query: &str) -> bool {
+    let q = query.trim().to_lowercase();
+    if q.is_empty() || info.name.to_lowercase().contains(&q) {
+        return true;
+    }
+    let kind_words: &[&str] = match info.kind {
+        LayerKind::Pixel => &["pixel", "image", "raster", "photo"],
+        LayerKind::Group => &["group", "folder"],
+        LayerKind::Adjustment => &["adjustment"],
+        LayerKind::Fill => &["fill", "adjustment"],
+        LayerKind::Text => &["text", "type"],
+        LayerKind::Shape => &["shape", "vector"],
+        LayerKind::SmartObject => &["smart object", "smart"],
+        LayerKind::Artboard => &["artboard"],
+        LayerKind::Path => &["path"],
+        LayerKind::Image => &["image", "picture"],
+        LayerKind::Frame => &["frame"],
+        _ => &[],
+    };
+    if kind_words.iter().any(|w| w.starts_with(&q)) {
+        return true;
+    }
+    info.label.is_some_and(|color| color.name().starts_with(&q))
+}
+
 fn type_label(by: FilterBy, words: &LayerFilterWords) -> &Label {
     match by {
+        FilterBy::Search => &words.search_all,
         FilterBy::Kind => &words.kind,
         FilterBy::Name => &words.name,
         FilterBy::Effect => &words.effect,
@@ -808,6 +845,30 @@ fn toggles<K: Copy + PartialEq>(ui: &mut Ui, buttons: &[(K, &'static str, &Label
             Some(true) => on.push(value),
             Some(false) => on.retain(|held| *held != value),
             None => {}
+        }
+    }
+}
+
+#[cfg(test)]
+mod search_tests {
+    use super::*;
+
+    fn info(name: &str, kind: LayerKind, label: Option<LabelColor>) -> LayerInfo {
+        let mut info = LayerInfo::new(name, kind);
+        info.label = label;
+        info
+    }
+
+    #[test]
+    fn search_finds_layers_by_name_kind_or_label() {
+        let mut filter = LayerFilter::default();
+        assert_eq!(filter.by, FilterBy::Search, "the bar opens on Search");
+        let title = info("Title", LayerKind::Text, None);
+        let photo = info("Beach", LayerKind::Pixel, Some(LabelColor::Red));
+        let logo = info("Logo", LayerKind::Shape, None);
+        for (query, want) in [("tit", [true, false, false]), ("text", [true, false, false]), ("image", [false, true, false]), ("red", [false, true, false]), ("SHAPE ", [false, false, true]), ("", [true, true, true])] {
+            filter.name = query.into();
+            assert_eq!([filter.shows(&title), filter.shows(&photo), filter.shows(&logo)], want, "{query:?}");
         }
     }
 }

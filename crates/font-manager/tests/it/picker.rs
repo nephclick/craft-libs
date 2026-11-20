@@ -186,3 +186,23 @@ fn a_click_on_the_focused_closed_field_selects_the_name_so_typing_replaces_it() 
         assert_eq!(seen.borrow().picks.last().map(|(picked, _)| picked.as_str()), Some(family), "the typed name is picked");
     }
 }
+
+#[trial]
+fn the_recent_category_lists_the_recent_families_most_recent_first_and_typing_searches_everything() {
+    let catalog = catalog_of(&[epaint_default_fonts::HACK_REGULAR, epaint_default_fonts::UBUNTU_LIGHT, INTER_REGULAR]);
+    let all = family_rows(&catalog, "", None, &FontFilters::default(), "", "en");
+    let names: Vec<String> = all.iter().map(|r| r.family.clone()).collect();
+    assert_eq!(names.len(), 3);
+    let mut settings = FontPickerSettings::default();
+    settings.note_recent(&names[2]);
+    settings.note_recent(&names[0]);
+    let mut recent = FontFilters::default();
+    recent.recent = true;
+    let rows: Vec<String> = family_rows(&catalog, "", Some(&settings), &recent, "", "en").into_iter().map(|r| r.family).collect();
+    assert_eq!(rows, [names[0].clone(), names[2].clone()], "the recent families, last used first");
+    let typed = family_rows(&catalog, &names[1], Some(&settings), &recent, "", "en");
+    assert!(typed.iter().any(|r| r.family == names[1]), "a typed name searches every family");
+    // No recents yet: the category shows every family rather than nothing.
+    let none = family_rows(&catalog, "", Some(&FontPickerSettings::default()), &recent, "", "en");
+    assert_eq!(none.len(), all.len());
+}

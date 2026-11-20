@@ -198,6 +198,7 @@ fn filter_bar(ui: &mut egui::Ui, filters: &mut FontFilters, hide_classes: &mut b
         ToggleButton::new(label.clone(), Bind::bound(hide_classes)).icon(IconId::new(icon)).icon_only().show(ui);
         ToggleButton::new(words.variable.clone(), Bind::bound(&mut filters.variable)).icon(IconId::new("font_variable")).icon_only().show(ui);
         let star = if filters.favorites { "star_filled" } else { "star" };
+        ToggleButton::new(words.recent_filter.clone(), Bind::bound(&mut filters.recent)).icon(IconId::new("clock")).icon_only().show(ui);
         ToggleButton::new(words.favorites.clone(), Bind::bound(&mut filters.favorites)).icon(IconId::new(star)).icon_only().show(ui);
         ToggleButton::new(words.similar.clone(), Bind::bound(&mut filters.similar)).icon(IconId::new("font_similar")).icon_only().show(ui);
         let clear = Button::new(words.clear_all.clone()).enabled(filters.any()).show(ui);
@@ -320,7 +321,7 @@ pub(super) fn popup<'a>(picker: &mut FontPicker<'a>, ui: &mut OverlayUi<'_>, cx:
     let favorites_empty = settings.as_ref().is_none_or(|s| s.favorites.is_empty());
     // Rows are keyed, so the stamp names only what rebuilds the list: opening a family keeps the lead.
     let mut stamp = DefaultHasher::new();
-    (&query, narrowing.class, narrowing.favorites, narrowing.variable, narrowing.similar).hash(&mut stamp);
+    (&query, narrowing.class, narrowing.favorites, narrowing.recent, narrowing.variable, narrowing.similar).hash(&mut stamp);
     let banner_family = lead.unwrap_or_else(|| family.clone());
     let banner_text = picker.preview_text;
     let name = words.list.clone();

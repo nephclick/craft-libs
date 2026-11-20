@@ -332,6 +332,19 @@ pub(super) fn list(catalog: &Arc<Catalog>, infos: &Infos, listing: &Listing<'_>,
     if filters.favorites {
         rows.retain(|r| r.starred);
     }
+    // The Recent category: the recent families in the order they were used, when there are any.
+    // Typing searches every family: the category narrows only the unsearched list.
+    if filters.recent
+        && matcher.is_empty()
+        && let Some(settings) = settings
+        && !settings.recent.is_empty()
+    {
+        let recent: Vec<FamilyRow> =
+            settings.recent.iter().take(settings.recent_limit.max(1)).filter_map(|f| rows.iter().find(|r| r.family == *f).cloned()).collect();
+        if !recent.is_empty() {
+            rows = recent;
+        }
+    }
     if filters.variable {
         rows.retain(|r| r.format == Some(FontFormat::Variable));
     }
