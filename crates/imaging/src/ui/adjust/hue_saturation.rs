@@ -9,7 +9,7 @@ use craft_theme::{Hsb, Srgba};
 use craft_behavior::IconId;
 use craft_ui::buttons::IconButton;
 use craft_ui::choice::Checkbox;
-use craft_ui::contract::clicked;
+use craft_ui::contract::{Sizing, clicked};
 use craft_ui::contract::{Bind, EditResponse, Entry, Outcome, Pattern, Props as _, Remember as _, Show as _, ShowContainer as _};
 use craft_ui::display::{Shade, Text};
 use craft_ui::form::Field;
@@ -327,7 +327,9 @@ impl<'a> HueSaturationEditor<'a> {
             entries.extend(names.iter().enumerate().map(|(i, name)| Entry::new(i + 1, (*name).clone())));
             let mut picked = None;
             Field::new(words.range.clone()).id_salt("range").show(ui, |ui, _| {
-                picked = Select::new(words.range.clone(), Bind::given(at), &entries).enabled(!now.colorize).show(ui).value().copied();
+                // Sized to its entries, so the eyedropper fits beside it on the row.
+                let sizing = if range_picker { Sizing::Content } else { Sizing::default() };
+                picked = Select::new(words.range.clone(), Bind::given(at), &entries).enabled(!now.colorize).sizing(sizing).show(ui).value().copied();
                 if range_picker {
                     let name = words.pick_range.clone();
                     let button = IconButton::new(IconId::new("eyedropper")).label(name.clone()).tooltip(name).enabled(!now.colorize).id_salt("pick-range").show(ui);

@@ -434,9 +434,18 @@ impl Kit {
     pub(super) fn sides(&self, ui: &mut Ui, size: &mut LinkedSize) {
         // Each side is a row of the form like the resolution, and the chain is a row of its own under them: a stack
         // nested in a row beside the chain was measured before its rows and drew them squashed to a line.
-        // The chain sits at the end of the Width row, beside the fields it links, as Photoshop draws it.
+        // The chain is a row of its own right under the two sides it links: at the end of the Width row it made the row
+        // too wide for the dialog, and the form fell back to labels above the fields.
         self.row(ui, size, Dimension::Width);
         self.row(ui, size, Dimension::Height);
+        if size.has_chain() {
+            Field::new(self.link.clone()).id_salt("link-row").show(ui, |ui, _| {
+                let toggle = link_toggle(self.link.clone(), Bind::given(size.is_linked())).enabled(size.is_resampling()).id_salt("link").show(ui);
+                if let Some(on) = toggle.value().copied() {
+                    size.lock(on);
+                }
+            });
+        }
     }
 
     /// The resolution row.
@@ -490,12 +499,6 @@ impl Kit {
                     Dimension::Height => size.set_unit(kind),
                     Dimension::Resolution => size.set_resolution_unit(kind),
                 };
-            }
-            if which == Dimension::Width && size.has_chain() {
-                let toggle = link_toggle(self.link.clone(), Bind::given(size.is_linked())).enabled(size.is_resampling()).id_salt("link").show(ui);
-                if let Some(on) = toggle.value().copied() {
-                    size.lock(on);
-                }
             }
         });
     }
