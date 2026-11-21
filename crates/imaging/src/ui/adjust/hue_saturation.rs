@@ -10,6 +10,7 @@ use craft_behavior::IconId;
 use craft_ui::buttons::IconButton;
 use craft_ui::choice::Checkbox;
 use craft_ui::contract::{Sizing, clicked};
+use craft_ui::layout_components::Row as LayoutRow;
 use craft_ui::contract::{Bind, EditResponse, Entry, Outcome, Pattern, Props as _, Remember as _, Show as _, ShowContainer as _};
 use craft_ui::display::{Shade, Text};
 use craft_ui::form::Field;
@@ -329,12 +330,16 @@ impl<'a> HueSaturationEditor<'a> {
             Field::new(words.range.clone()).id_salt("range").show(ui, |ui, _| {
                 // Sized to its entries, so the eyedropper fits beside it on the row.
                 let sizing = if range_picker { Sizing::Content } else { Sizing::default() };
-                picked = Select::new(words.range.clone(), Bind::given(at), &entries).enabled(!now.colorize).sizing(sizing).show(ui).value().copied();
-                if range_picker {
-                    let name = words.pick_range.clone();
-                    let button = IconButton::new(IconId::new("eyedropper")).label(name.clone()).tooltip(name).enabled(!now.colorize).id_salt("pick-range").show(ui);
-                    pick_range = clicked(&button);
-                }
+                // One row: the select, then the eyedropper to its right.
+                LayoutRow::new().show(ui, |ui, _| {
+                    picked = Select::new(words.range.clone(), Bind::given(at), &entries).enabled(!now.colorize).sizing(sizing).show(ui).value().copied();
+                    if range_picker {
+                        let name = words.pick_range.clone();
+                        let button =
+                            IconButton::new(IconId::new("eyedropper")).label(name.clone()).tooltip(name).enabled(!now.colorize).id_salt("pick-range").show(ui);
+                        pick_range = clicked(&button);
+                    }
+                });
             });
             let mut run = Run::start(&mut value, context, now, memory.began);
             let hue_track = AdjustTrack::Colors(hue_stops());

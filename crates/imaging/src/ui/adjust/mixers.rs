@@ -13,6 +13,7 @@ pub use selective_color::{SelectiveColor, SelectiveColorEditor, SelectiveColorOu
 use craft_behavior::{IconId, Value};
 use craft_ui::buttons::IconButton;
 use craft_ui::contract::{Sizing, clicked};
+use craft_ui::layout_components::Row;
 use craft_ui::contract::{Bind, Entry, Props as _, Show as _, ShowContainer as _};
 use craft_ui::form::Field;
 use craft_ui::pickers::Select;
@@ -46,10 +47,13 @@ impl Tables<'_> {
         let mut pick = false;
         Field::new(self.name.clone()).id_salt("select").show(ui, |ui, _| {
             let sizing = if self.picker.is_some() { Sizing::Content } else { Sizing::default() };
-            chosen = Select::new(self.name.clone(), Bind::given(self.picked), self.entries).sizing(sizing).show(ui).value().copied();
-            if let Some(name) = &self.picker {
-                pick = clicked(&IconButton::new(IconId::new("eyedropper")).label(name.clone()).tooltip(name.clone()).id_salt("pick-range").show(ui));
-            }
+            // One row: the select, then the eyedropper to its right.
+            Row::new().show(ui, |ui, _| {
+                chosen = Select::new(self.name.clone(), Bind::given(self.picked), self.entries).sizing(sizing).show(ui).value().copied();
+                if let Some(name) = &self.picker {
+                    pick = clicked(&IconButton::new(IconId::new("eyedropper")).label(name.clone()).tooltip(name.clone()).id_salt("pick-range").show(ui));
+                }
+            });
         });
         for (i, field) in self.fields.iter().enumerate() {
             let set = set.clone();
