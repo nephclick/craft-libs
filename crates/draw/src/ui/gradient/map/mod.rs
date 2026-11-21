@@ -95,8 +95,8 @@ pub struct GradientMapEditor<'a> {
     /// Samples the stop bar's ramp; the default sampler of colour-only rows by default.
     #[prop]
     sampler: Option<&'a Sampler>,
-    /// Whether the editor draws its Reverse and Dither boxes (on by default). A host that lays them out itself, on one
-    /// line with its stop buttons, turns them off and reads and writes the map's `reverse` and `dither` itself.
+    /// Whether the editor draws its stop fields and its Reverse and Dither boxes (on by default). A host that lays them
+    /// out itself, on one line with its stop buttons, turns them off and edits the stops, `reverse` and `dither` itself.
     #[prop]
     options: bool,
 }
@@ -171,8 +171,12 @@ impl<'a> GradientMapEditor<'a> {
                 import = true;
             }
             let rules = StopRules::new(StopRows::ColorOnly).stops(MIN_STOPS, MAX_STOPS);
-            let mut editor =
-                GradientEditor::new(stops_label.clone(), Bind::given(base.stops.clone())).rules(rules).midpoints(false).location_decimals(1);
+            // A host that lays out its own options draws its own stop fields too: the bar alone here.
+            let mut editor = GradientEditor::new(stops_label.clone(), Bind::given(base.stops.clone()))
+                .rules(rules)
+                .midpoints(false)
+                .location_decimals(1)
+                .fields(self.options);
             if let Some(sampler) = self.sampler {
                 editor = editor.sampler(sampler);
             }

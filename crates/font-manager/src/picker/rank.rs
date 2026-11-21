@@ -137,14 +137,14 @@ fn draws(catalog: &Catalog, face: &FaceInfo, sample: &str, arabic: &str, shown: 
     let map = font.charmap();
     let drawn = |t: &str| t.chars().filter(|c| !c.is_whitespace()).all(|c| map.map(c).is_some());
     if drawn(sample) {
-        let arabic = has_arabic_sample(&drawn, sample, arabic).then(|| arabic.to_owned());
+        let arabic = (!arabic.is_empty() && has_arabic_sample(&drawn, sample, arabic)).then(|| arabic.to_owned());
         return Some(Samples { latin: sample.to_owned(), arabic });
     }
     if drawn(shown) {
         return Some(Samples { latin: shown.to_owned(), arabic: None });
     }
-    let first = map.mappings().filter_map(|(cp, _)| char::from_u32(cp)).filter(|c| !c.is_whitespace() && !c.is_control()).take(6).collect();
-    Some(Samples { latin: first, arabic: None })
+    // A symbol or non-Latin face that draws neither: no sample, rather than a row of glyphs nobody can read.
+    Some(Samples { latin: String::new(), arabic: None })
 }
 
 type CacheEntry = (Weak<Catalog>, u64, Arc<Infos>);

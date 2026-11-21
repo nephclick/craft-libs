@@ -386,8 +386,10 @@ pub(super) fn popup<'a>(picker: &mut FontPicker<'a>, ui: &mut OverlayUi<'_>, cx:
                                 if size == ThumbSize::None {
                                     return line;
                                 }
-                                let samples =
-                                    infos.sample_text(catalog, &row.family, words.sample.as_str(), words.sample_arabic.as_str(), &row.shown);
+                                // The Arabic sample only for an Arabic interface: elsewhere it reads as unknown characters beside
+                                // most system fonts, which carry Arabic.
+                                let arabic = if language_code.starts_with("ar") { words.sample_arabic.as_str() } else { "" };
+                                let samples = infos.sample_text(catalog, &row.family, words.sample.as_str(), arabic, &row.shown);
                                 let aspect = ThumbAspect::new(SAMPLE_ASPECT.0, SAMPLE_ASPECT.1);
                                 line = line.thumb_aspect(size, aspect, face_thumb(catalog, &infos, &row.family, samples.latin));
                                 match samples.arabic {
