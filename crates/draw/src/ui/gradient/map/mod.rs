@@ -12,12 +12,14 @@ use craft_ui::buttons::Button;
 use craft_ui::choice::Checkbox;
 use craft_ui::contract::{Bind, Pattern, Props as _, Show as _, ShowContainer as _, clicked};
 use craft_ui::layout_components::Stack;
-use craft_ui::patterns::presets::{PresetPicker, PresetRow};
+use craft_ui::patterns::presets::{PresetPicker, PresetRow, ThumbInfo};
+use craft_ui::primitives::ContentPainterCx;
 use craft_ui::runtime::env::{Env, Label};
-use egui::{Response, Ui};
+use egui::{CornerRadius, Rect, Response, Ui};
 use std::sync::Arc;
 
-use craft_color_ui::ui::gradient::{ColorStop, GradientEditor, GradientStops, Sampler, StopColor, StopRows, StopRules};
+use craft_color_ui::gradient::default_sampler;
+use craft_color_ui::ui::gradient::{ColorStop, GradientEditor, GradientRamp, GradientStops, Sampler, StopColor, StopRows, StopRules};
 use serde::{Deserialize, Serialize};
 
 use super::{GradientGroup, GradientRef};
@@ -93,12 +95,16 @@ pub struct GradientMapEditor<'a> {
     /// Samples the stop bar's ramp; the default sampler of colour-only rows by default.
     #[prop]
     sampler: Option<&'a Sampler>,
+    /// Whether the editor draws its Reverse and Dither boxes (on by default). A host that lays them out itself, on one
+    /// line with its stop buttons, turns them off and reads and writes the map's `reverse` and `dither` itself.
+    #[prop]
+    options: bool,
 }
 
 impl<'a> GradientMapEditor<'a> {
     /// An editor named `label` of `value`.
     pub fn new(label: impl Into<Label>, value: &'a GradientMap) -> Self {
-        GradientMapEditor { label: label.into(), value, presets: &[], sampler: None }
+        GradientMapEditor { label: label.into(), value, presets: &[], sampler: None, options: true }
     }
 
     /// The stops of preset `key`, as the map takes them: colour stops only, opaque, midpoints centred, at most 64.
@@ -138,13 +144,26 @@ impl<'a> GradientMapEditor<'a> {
                 .enumerate()
                 .flat_map(|(group, g)| {
                     let header = PresetRow::group(GradientRef::Item { group, item: usize::MAX }, g.name.clone(), 0);
-                    let items =
-                        g.items.iter().enumerate().map(move |(item, p)| PresetRow::item(GradientRef::Item { group, item }, p.name.clone(), 1));
+                    // Each preset shows its name under the ramp the thumbnail painter draws.
+                    let items = g.items.iter().enumerate().map(move |(item, p)| {
+                        PresetRow::item(GradientRef::Item { group, item }, p.name.clone(), 1).caption(p.name.clone())
+                    });
                     std::iter::once(header).chain(items)
                 })
                 .collect();
-            let picker =
-                PresetPicker::new(preset_label.clone(), Bind::given(None::<GradientRef>), &rows, Bind::kept()).placeholder(custom.clone()).show(ui);
+            // Every preset's thumbnail is its own gradient, as the stop bar will show it once picked.
+            let fallback = default_sampler(StopRows::ColorOnly);
+            let sampler: &Sampler = self.sampler.unwrap_or(&fallback);
+            let thumb = |cx: &ContentPainterCx<'_>, rect: Rect, info: ThumbInfo<'_, GradientRef>| {
+                if let Some(stops) = self.preset_stops(*info.key) {
+                    let colors = GradientRamp::colors(&stops, sampler);
+                    GradientRamp::paint(cx, rect, CornerRadius::same(3), &colors);
+                }
+            };
+            let picker = PresetPicker::new(preset_label.clone(), Bind::given(None::<GradientRef>), &rows, Bind::kept())
+                .placeholder(custom.clone())
+                .preview(thumb)
+                .show(ui);
             if let Some(stops) = picker.picked.and_then(|key| self.preset_stops(key)) {
                 event = Some(set(GradientMap { stops, ..base.clone() }));
             }
@@ -162,15 +181,17 @@ impl<'a> GradientMapEditor<'a> {
                 event = Some(set(GradientMap { stops: edit, ..base.clone() }));
             }
             color_requested = bar.color_requested;
-            let mut reverse = base.reverse;
-            let toggled = !Checkbox::new(Bind::bound(&mut reverse)).label(reverse_label.clone()).show(ui).events.is_empty();
-            if toggled {
-                event = Some(set(GradientMap { reverse, ..base.clone() }));
-            }
-            let mut dither = base.dither;
-            let toggled = !Checkbox::new(Bind::bound(&mut dither)).label(dither_label.clone()).show(ui).events.is_empty();
-            if toggled {
-                event = Some(set(GradientMap { dither, ..base.clone() }));
+            if self.options {
+                let mut reverse = base.reverse;
+                let toggled = !Checkbox::new(Bind::bound(&mut reverse)).label(reverse_label.clone()).show(ui).events.is_empty();
+                if toggled {
+                    event = Some(set(GradientMap { reverse, ..base.clone() }));
+                }
+                let mut dither = base.dither;
+                let toggled = !Checkbox::new(Bind::bound(&mut dither)).label(dither_label.clone()).show(ui).events.is_empty();
+                if toggled {
+                    event = Some(set(GradientMap { dither, ..base.clone() }));
+                }
             }
         });
         GradientMapOutput { response: shown.output, event, color_requested, import }
