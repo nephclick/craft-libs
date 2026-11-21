@@ -159,8 +159,8 @@ impl<'a> ChannelMixerEditor<'a> {
                 row[i] = x;
                 now.with_row(out, row)
             };
-            let tables = Tables { name: words.output_channel.clone(), entries: &entries, picked: out, fields: &fields, values: &row[..3] };
-            let picked = tables.show(ui, cx, &mut run, set);
+            let tables = Tables { name: words.output_channel.clone(), entries: &entries, picked: out, fields: &fields, values: &row[..3], picker: None };
+            let (picked, _) = tables.show(ui, cx, &mut run, set);
             let total = ChannelMixer::total(row);
             let warn = total_warns(total);
             let text = total_text(&units, &words, total);

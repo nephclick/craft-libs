@@ -60,6 +60,9 @@ pub struct SelectiveColorOutput {
     pub edit: EditResponse<SelectiveColor>,
     /// The range shown after the pass, 0 Reds … 8 Blacks.
     pub shown_range: usize,
+    /// The eyedropper beside Colors was clicked: the host picks the range from a colour of the image and shows it
+    /// with [`SelectiveColorEditor::range`].
+    pub pick_range: bool,
 }
 
 impl Outcome for SelectiveColorOutput {
@@ -93,12 +96,28 @@ pub struct SelectiveColorEditor<'a> {
     label: Label,
     value: Bind<'a, SelectiveColor>,
     context: AdjustContext,
+    range: Option<usize>,
+    range_picker: bool,
 }
 
 impl<'a> SelectiveColorEditor<'a> {
     /// The editor named `label` of `value`.
     pub fn new(label: impl Into<Label>, value: Bind<'a, SelectiveColor>) -> Self {
-        Self { label: label.into(), value, context: AdjustContext::dialog(true) }
+        Self { label: label.into(), value, context: AdjustContext::dialog(true), range: None, range_picker: false }
+    }
+
+    /// The range shown, kept by the host (0 Reds … 8 Blacks); the user's choice comes back as
+    /// [`SelectiveColorOutput::shown_range`].
+    pub fn range(mut self, range: usize) -> Self {
+        self.range = Some(range);
+        self
+    }
+
+    /// Shows an eyedropper beside Colors that asks the host to pick the range from the image
+    /// ([`SelectiveColorOutput::pick_range`]).
+    pub fn range_picker(mut self, on: bool) -> Self {
+        self.range_picker = on;
+        self
     }
 
     /// Dialog or Properties panel; a dialog by default.
@@ -109,13 +128,14 @@ impl<'a> SelectiveColorEditor<'a> {
 
     /// Shows the editor and returns this pass's edit of the `SelectiveColor` and the range shown.
     pub fn show(self, ui: &mut Ui) -> SelectiveColorOutput {
-        let SelectiveColorEditor { label, mut value, context } = self;
+        let SelectiveColorEditor { label, mut value, context, range: host_range, range_picker } = self;
+        let mut pick_range = false;
         let words = words(ui);
         let mut out = None;
         let shown = editor_group(ui, label, context, |ui, cx| {
             let now = read(&mut value, cx).unwrap_or_default();
             let memory = cx.memory::<SelectiveMemory>().clone();
-            let range = memory.range.min(RANGES - 1);
+            let range = host_range.unwrap_or(memory.range).min(RANGES - 1);
             let names = [
                 &words.reds,
                 &words.yellows,
@@ -133,8 +153,9 @@ impl<'a> SelectiveColorEditor<'a> {
                 .map(|(key, name)| AdjustField::new(key, name.clone(), -100.0..=100.0, 0.0).unit_kind(UnitKind::Percent))
                 .collect();
             let mut run = Run::start(&mut value, context, now, memory.began);
-            let tables = Tables { name: words.colors.clone(), entries: &entries, picked: range, fields: &fields, values: &now.ranges[range] };
-            let picked = tables.show(ui, cx, &mut run, move |now: &SelectiveColor, i, x| {
+            let picker = range_picker.then(|| words.pick_range.clone());
+            let tables = Tables { name: words.colors.clone(), entries: &entries, picked: range, fields: &fields, values: &now.ranges[range], picker };
+            let (picked, pick) = tables.show(ui, cx, &mut run, move |now: &SelectiveColor, i, x| {
                 let mut next = *now;
                 next.ranges[range][i] = x;
                 next
@@ -155,9 +176,10 @@ impl<'a> SelectiveColorEditor<'a> {
             let memory = cx.memory::<SelectiveMemory>();
             memory.began = run.began();
             memory.range = picked.unwrap_or(range);
+            pick_range = pick;
             out = Some((run.finish(), picked.unwrap_or(range)));
         });
         let (edit, shown_range) = out.map_or((None, 0), |(edit, range)| (Some(edit), range));
-        SelectiveColorOutput { edit: lifted(edit, shown.output), shown_range }
+        SelectiveColorOutput { edit: lifted(edit, shown.output), shown_range, pick_range }
     }
 }

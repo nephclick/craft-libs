@@ -71,6 +71,8 @@ craft_ui::words! {
         // Colour ranges (Hue/Saturation, Black & White, Selective Color).
         master: "adjust.master" = "Master";
         range: "adjust.range" = "Range";
+        /// The eyedropper beside a range select: picks the range from a colour of the image.
+        pick_range: "adjust.pickRange" = "Pick the range from the image";
         reds: "adjust.reds" = "Reds";
         yellows: "adjust.yellows" = "Yellows";
         greens: "adjust.greens" = "Greens";

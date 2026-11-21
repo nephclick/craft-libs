@@ -6,7 +6,10 @@ mod stories;
 
 use craft_behavior::Mixed;
 use craft_theme::{Hsb, Srgba};
+use craft_behavior::IconId;
+use craft_ui::buttons::IconButton;
 use craft_ui::choice::Checkbox;
+use craft_ui::contract::clicked;
 use craft_ui::contract::{Bind, EditResponse, Entry, Outcome, Pattern, Props as _, Remember as _, Show as _, ShowContainer as _};
 use craft_ui::display::{Shade, Text};
 use craft_ui::form::Field;
@@ -218,6 +221,9 @@ pub struct HueSaturationOutput {
     pub edit: EditResponse<HueSaturation>,
     /// The range shown after the pass: `None` for Master, else 0 Reds … 5 Magentas.
     pub shown_range: Option<usize>,
+    /// The eyedropper beside Range was clicked: the host picks the range from a colour of the image and shows it
+    /// with [`HueSaturationEditor::range`].
+    pub pick_range: bool,
 }
 
 impl Outcome for HueSaturationOutput {
@@ -266,12 +272,13 @@ pub struct HueSaturationEditor<'a> {
     adjusted: Option<&'a dyn Fn(f64) -> Srgba>,
     range: Option<Option<usize>>,
     context: AdjustContext,
+    range_picker: bool,
 }
 
 impl<'a> HueSaturationEditor<'a> {
     /// The editor named `label` of `value`.
     pub fn new(label: impl Into<Label>, value: Bind<'a, HueSaturation>) -> Self {
-        Self { label: label.into(), value, adjusted: None, range: None, context: AdjustContext::dialog(true) }
+        Self { label: label.into(), value, adjusted: None, range: None, context: AdjustContext::dialog(true), range_picker: false }
     }
 
     /// What a fully saturated, full-brightness hue (degrees 0..=360) becomes under the shown value: the host runs its
@@ -294,9 +301,17 @@ impl<'a> HueSaturationEditor<'a> {
         self
     }
 
+    /// Shows an eyedropper beside Range that asks the host to pick the range from the image
+    /// ([`HueSaturationOutput::pick_range`]).
+    pub fn range_picker(mut self, on: bool) -> Self {
+        self.range_picker = on;
+        self
+    }
+
     /// Shows the editor and returns this pass's edit of the `HueSaturation` and the range shown.
     pub fn show(self, ui: &mut Ui) -> HueSaturationOutput {
-        let HueSaturationEditor { label, mut value, adjusted, range: host_range, context } = self;
+        let HueSaturationEditor { label, mut value, adjusted, range: host_range, context, range_picker } = self;
+        let mut pick_range = false;
         let words = words(ui);
         let units = Env::of(ui).units();
         let mut out = None;
@@ -313,6 +328,11 @@ impl<'a> HueSaturationEditor<'a> {
             let mut picked = None;
             Field::new(words.range.clone()).id_salt("range").show(ui, |ui, _| {
                 picked = Select::new(words.range.clone(), Bind::given(at), &entries).enabled(!now.colorize).show(ui).value().copied();
+                if range_picker {
+                    let name = words.pick_range.clone();
+                    let button = IconButton::new(IconId::new("eyedropper")).label(name.clone()).tooltip(name).enabled(!now.colorize).id_salt("pick-range").show(ui);
+                    pick_range = clicked(&button);
+                }
             });
             let mut run = Run::start(&mut value, context, now, memory.began);
             let hue_track = AdjustTrack::Colors(hue_stops());
@@ -401,6 +421,6 @@ impl<'a> HueSaturationEditor<'a> {
             out = Some((run.finish(), if now.colorize { None } else { picked.unwrap_or(at).checked_sub(1) }));
         });
         let (edit, shown_range) = out.map_or((None, None), |(edit, range)| (Some(edit), range));
-        HueSaturationOutput { edit: lifted(edit, shown.output), shown_range }
+        HueSaturationOutput { edit: lifted(edit, shown.output), shown_range, pick_range }
     }
 }

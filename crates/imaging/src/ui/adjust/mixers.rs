@@ -10,7 +10,9 @@ pub use black_white::{BlackWhite, BlackWhiteEditor, BlackWhiteOutput};
 pub use channel_mixer::{ChannelMixer, ChannelMixerEditor};
 pub use selective_color::{SelectiveColor, SelectiveColorEditor, SelectiveColorOutput, SelectiveMethod};
 
-use craft_behavior::Value;
+use craft_behavior::{IconId, Value};
+use craft_ui::buttons::IconButton;
+use craft_ui::contract::clicked;
 use craft_ui::contract::{Bind, Entry, Props as _, Show as _, ShowContainer as _};
 use craft_ui::form::Field;
 use craft_ui::pickers::Select;
@@ -27,6 +29,8 @@ struct Tables<'t> {
     picked: usize,
     fields: &'t [AdjustField],
     values: &'t [f64],
+    /// The name of an eyedropper beside the select that picks the table from a colour of the image; none without.
+    picker: Option<Label>,
 }
 
 impl Tables<'_> {
@@ -37,15 +41,19 @@ impl Tables<'_> {
         cx: &mut craft_ui::contract::BodyCx<'_>,
         run: &mut Run<'_, '_, V>,
         set: impl Fn(&V, usize, f64) -> V + Clone,
-    ) -> Option<usize> {
+    ) -> (Option<usize>, bool) {
         let mut chosen = None;
+        let mut pick = false;
         Field::new(self.name.clone()).id_salt("select").show(ui, |ui, _| {
             chosen = Select::new(self.name.clone(), Bind::given(self.picked), self.entries).show(ui).value().copied();
+            if let Some(name) = &self.picker {
+                pick = clicked(&IconButton::new(IconId::new("eyedropper")).label(name.clone()).tooltip(name.clone()).id_salt("pick-range").show(ui));
+            }
         });
         for (i, field) in self.fields.iter().enumerate() {
             let set = set.clone();
             run.slider_row(ui, cx, field, self.values[i], move |now, x| set(now, i, x));
         }
-        chosen
+        (chosen, pick)
     }
 }
